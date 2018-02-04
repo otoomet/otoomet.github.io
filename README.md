@@ -9,7 +9,7 @@ speed of several methods to look data up in 1D structures in R, using
 integer keys and values.  Only assessing single-key lookup.  Benchmark
 it with python dict.
 
-[1D vectorized lookup timing in R](vectorized_lookup_R.html): similar
+[1D vectorized lookup timing in R](vectorized_lookup.html): similar
 to the one above, but now testing longish vectors of keys.  Benchmark it
 with python dict and pandas.
 
