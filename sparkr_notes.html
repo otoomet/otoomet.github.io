@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-05-03" />
+<meta name="date" content="2018-05-08" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-05-03</em></h4>
+<h4 class="date"><em>2018-05-08</em></h4>
 
 </div>
 
@@ -306,12 +306,19 @@ div.tocify {
 </div>
 <div id="compression-codecs" class="section level2">
 <h2><span class="header-section-number">2.2</span> Compression Codecs</h2>
-<p>By default, spark compresses parquet files by snappy codec which creates rather large temporary files. You have to configure it to use something else, such as “gzip”. The codec must be specificed when initiatin spark session through <em>sparkConfig</em> argument. <em>sparkConfig</em> is a list of configuration options in the form of <em>name</em> = <em>value</em> and name for parquet compression is <em>spark.sql.parquet.comression.codec</em>. Value must be a string. For instance:</p>
+<p>By default, spark compresses parquet files by snappy codec which creates rather large temporary files. You have to configure it explicitly to use something else, such as “gzip”. The codec must be specificed during the spark session initialization through <em>sparkConfig</em> argument. <em>sparkConfig</em> is a list of configuration options in the form of <em>name</em> = <em>value</em> and name for parquet compression is <em>spark.sql.parquet.compression.codec</em>. Value must be a string. For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[8]&quot;</span>,
                      <span class="dt">appName =</span> <span class="st">&quot;mySparkApp&quot;</span>,
                      <span class="dt">sparkConfig=</span><span class="kw">list</span>(<span class="dt">spark.sql.parquet.compression.codec=</span><span class="st">&quot;gzip&quot;</span>)
                      )</code></pre></div>
 <p>Note: this must be done when spark session is initialized, later calls to <code>sparkR.conf</code> do not work. Neither can you configure spark before you have initialized the sparkSession.</p>
+</div>
+<div id="temporary-directories" class="section level2">
+<h2><span class="header-section-number">2.3</span> Temporary Directories</h2>
+<p>Spark stores quite a bit of temporary data on disk so you should ensure you have plenty of disk space. The location of temporary folders can be set in the environment variable <code>SPARK_LOCAL_DIRS</code> as a comma-separated list of directories:</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">SPARK_LOCAL_DIRS=</span><span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/tmp,/tmp&quot;</span></code></pre></div>
+<p>This creates temporary folders in two locations, one in <code>$HOME/tmp</code> and another in <code>/tmp</code>. The folders appear in pairs, names like <code>blockmgr-6e392c2c...</code> and <code>spark-f0e4221e...</code>.</p>
+<p>Spark splits data to be saved roughly equally onto both of these devices. This means, in particular, that when one of the devices is full, spark fails even if there is still plenty of space on the other (2.1.2).</p>
 </div>
 </div>
 <div id="merging-and-lazy-evaluation" class="section level1">
