@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-05-08" />
+<meta name="date" content="2018-08-16" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-05-08</em></h4>
+<h4 class="date"><em>2018-08-16</em></h4>
 
 </div>
 
@@ -321,21 +321,49 @@ div.tocify {
 <p>Spark splits data to be saved roughly equally onto both of these devices. This means, in particular, that when one of the devices is full, spark fails even if there is still plenty of space on the other (2.1.2).</p>
 </div>
 </div>
+<div id="data-input" class="section level1">
+<h1><span class="header-section-number">3</span> Data Input</h1>
+<div id="how-to-read-csv-files" class="section level2">
+<h2><span class="header-section-number">3.1</span> How to read csv files</h2>
+<p>CSV files are one of the most common and versatile forms of data. SparkR reads these pretty well but unfortunately, the documentation is not good enough to get started. The basic syntax is:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">loadDF</span>(fName,
+       <span class="dt">source=</span><span class="st">&quot;csv&quot;</span>,
+       <span class="dt">header=</span><span class="st">&quot;true&quot;</span>,
+       <span class="dt">sep=</span><span class="st">&quot;,&quot;</span>)</code></pre></div>
+<p>The most important arguments are:</p>
+<ul>
+<li><code>fName</code>: the file name. The unix home directory marker <code>~</code> does not seem to work (it is taken as a literal character in the file name), unlike in ordinary R. However, there are a number of good news:
+<ul>
+<li>compressed files, at least <code>.bz2</code>, are decompressed transparently (2.2.0).</li>
+<li><code>fName</code> can be a shell pattern corresponding to multiple files, such as <code>dir/*.csv</code>. In that case all these files are read and stacked into the resulting data frame.<br />
+</li>
+<li><code>fName</code> can also be the folder’s name (both with and without the trailing slash) in which case all files in that folder are read. Note: in this case <code>loadDF</code> loads all the files in that folder, including non-csv ones.</li>
+</ul></li>
+<li><code>source</code>: should be “csv” here</li>
+<li><code>header</code>: whether the file contains the first line as column names. Defaults to “false” which reads the eventual header names as the first line, and names columns to <code>_c0</code>, <code>_c1</code> etc. (2.2.0). Note: you have to specify java-ish “true” and “false” (in quotes) here, not R-ish <code>TRUE</code> and <code>FALSE</code>.</li>
+<li><code>sep</code>: field separator, default “,”.</li>
+<li>there are more arguments.</li>
+</ul>
+<p><code>loadDF</code> loads everything as string type, you may want to convert the columns afterwards (this can probably also be achieved by schemas).</p>
+<p>There is an alternative function, <code>read.df</code>, that differs from loadDF by the default arguments.</p>
+</div>
+</div>
 <div id="merging-and-lazy-evaluation" class="section level1">
-<h1><span class="header-section-number">3</span> Merging and Lazy Evaluation</h1>
+<h1><span class="header-section-number">4</span> Merging and Lazy Evaluation</h1>
 <p>Spark’s lazy evaluation makes debugging hard, the code may fail before it even reaches the problematic line.</p>
 <p>For instance, when ordering before merging where the merge introduces ambiguous columns you may see an error like:</p>
 <pre><code>org.apache.spark.sql.AnalysisException: Reference 'b' is ambiguous, could be: b#3, b#10.;</code></pre>
 <p>For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">11</span><span class="op">:</span><span class="dv">12</span>))
 bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">21</span><span class="op">:</span><span class="dv">22</span>))
-foobar &lt;-<span class="st"> </span>foo <span class="op">%&gt;%</span>
+foo <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">groupBy</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;b&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">count</span>() <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">merge</span>(bar, <span class="dt">by=</span><span class="st">&quot;a&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">rename</span>(<span class="dt">a =</span> <span class="kw">column</span>(<span class="st">&quot;a_x&quot;</span>))</code></pre></div>
-<p>fails with error <code>Caused by: org.apache.spark.sql.AnalysisException: Reference 'b' is ambiguous, could be: b#3, b#10.;</code>. The problem is multiple instance of <code>b</code> introduced through merge, but failure occurs at <code>groupBy(&quot;a&quot;, &quot;b&quot;)</code>.</p>
-<p>However, a slightly simpler plan still works and demonstrates what happens at merge:</p>
+<span class="st">   </span><span class="kw">rename</span>(<span class="dt">a =</span> <span class="kw">column</span>(<span class="st">&quot;a_x&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<p>fails with error <code>Caused by: org.apache.spark.sql.AnalysisException: Reference 'b' is ambiguous, could be: b#3, b#10.;</code>. The problem is multiple instance of <code>b</code> introduced through merge, but failure seems to occur at <code>groupBy(&quot;a&quot;, &quot;b&quot;)</code>.</p>
+<p>However, a slightly simpler plan—just removing the <code>rename</code> part that seems unrelated to the problem—still works and demonstrates what happens at merge:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">11</span><span class="op">:</span><span class="dv">12</span>))
 bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">21</span><span class="op">:</span><span class="dv">22</span>))
 foo <span class="op">%&gt;%</span>
@@ -350,7 +378,7 @@ foo <span class="op">%&gt;%</span>
 <p>(Spark 2.2.1)</p>
 </div>
 <div id="ordering-by-group" class="section level1">
-<h1><span class="header-section-number">4</span> Ordering by Group</h1>
+<h1><span class="header-section-number">5</span> Ordering by Group</h1>
 <p>Many common tasks require ordering by group. SparkR has multi-column ordering function (<code>arrange</code>) and multi-column grouping (<code>groupBy</code>). Unfortunately, these two do not play together. Assume we have temperature data</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">month =</span> <span class="kw">c</span>(<span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Dec&quot;</span>, <span class="st">&quot;Dec&quot;</span>), <span class="dt">day=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">15</span>,<span class="dv">1</span>,<span class="dv">15</span>), <span class="dt">temp=</span><span class="kw">c</span>(<span class="dv">14</span>,<span class="dv">12</span>,<span class="dv">10</span>,<span class="dv">12</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()
@@ -368,7 +396,7 @@ temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">agg</span>(<span class="dt">maxDay =</span> day[<span class="dv">1</span>])</code></pre></div>
 <p>as grouped data cannot be arranged in spark.</p>
 <div id="window-functions" class="section level2">
-<h2><span class="header-section-number">4.1</span> Window Functions</h2>
+<h2><span class="header-section-number">5.1</span> Window Functions</h2>
 <p>A correct solution seems to be to use window functions. Windows in SQL parlance are blocks of rows where one can do certain operations. Windows can be defined in a different ways, here we are interested partitioning data by keys into windows. This can be done as <code>windowPartitionBy(&quot;month&quot;)</code>. This tells spark that data must be “partitioned” by month (I guess the ‘partition’ here not the same as RDD partition), and we can operate separately on these partitions.</p>
 <p>Now we want to order the partitions by temperature. This can be achieved by <code>ws &lt;- orderBy(windowPartitionBy(&quot;month&quot;), &quot;temp&quot;)</code>. Note we first define window partition, and thereafter it’s ordering. These operations form our <em>window specification</em> <code>ws</code>. This is just specification, we haven’t touched the data yet.</p>
 <p>When done with window specification, one can use window functions. These can be invoked by <code>over(x, window)</code> where <code>x</code> is a column, mostly likely computed via window functions, and <code>window</code> is the window spec we defined above. To solve the task above, we can add the row number (i.e. temperature rank) for each day in month. So we can do:</p>
@@ -394,7 +422,7 @@ temp <span class="op">%&gt;%</span>
 <p>Obviously, in the final version we may drop obsolete variables and order the data according to month.</p>
 </div>
 <div id="arrange---groupby" class="section level2">
-<h2><span class="header-section-number">4.2</span> <code>arrange</code> - <code>groupBy</code></h2>
+<h2><span class="header-section-number">5.2</span> <code>arrange</code> - <code>groupBy</code></h2>
 <p>Note: it is tempting to do go the following way instead:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">arrange</span>(<span class="kw">column</span>(<span class="st">&quot;month&quot;</span>), <span class="kw">desc</span>(<span class="kw">column</span>(<span class="st">&quot;temp&quot;</span>))) <span class="op">%&gt;%</span>
@@ -408,7 +436,7 @@ temp <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="how-to-rename-columns" class="section level1">
-<h1><span class="header-section-number">5</span> How to Rename Columns</h1>
+<h1><span class="header-section-number">6</span> How to Rename Columns</h1>
 <p>There are two built-in functions for renaming. <code>rename</code> expects a list of arguments in the form of <code>newName = existingColumn</code> (after the data frame argument). Note: this is quoted or unquoted name = column, the right hand side must not be just a column name. This is perhaps the easiest way to rename variables:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="kw">c</span>(<span class="st">&quot;Huang&quot;</span>, <span class="st">&quot;Goyal&quot;</span>)))
 data <span class="op">%&gt;%</span>
@@ -440,7 +468,7 @@ data <span class="op">%&gt;%</span>
 ## 2  2 Goyal</code></pre>
 </div>
 <div id="arrange" class="section level1">
-<h1><span class="header-section-number">6</span> arrange</h1>
+<h1><span class="header-section-number">7</span> arrange</h1>
 <p>Spark dataframes can be ordered by <code>arrange</code> function. It orders the data by “natural order”, i.e. alphabetically for character columns and in numeric order for numerics. The syntax is similar to that of <em>dplyr</em>: <code>arrange(col, col, ...)</code>. However, there are two separate functions:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">arrange</span>(<span class="st">&quot;col1&quot;</span>, <span class="st">&quot;col2&quot;</span>, ...)</code></pre></div>
 <p>and</p>
@@ -466,9 +494,9 @@ data <span class="op">%&gt;%</span>
 <p>(2.2.1)</p>
 </div>
 <div id="handling-dates" class="section level1">
-<h1><span class="header-section-number">7</span> Handling Dates</h1>
+<h1><span class="header-section-number">8</span> Handling Dates</h1>
 <div id="timestamps" class="section level2">
-<h2><span class="header-section-number">7.1</span> Timestamps</h2>
+<h2><span class="header-section-number">8.1</span> Timestamps</h2>
 <p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. The spark internal format of choice would be <em>utc_timestamp</em>, the timestamp in UTC time zone. The way there may be slightly circuituous:</p>
 <ol style="list-style-type: decimal">
 <li><p>Convert the character representation (say, column “date”) into <em>unix_timestamp</em> with</p>
@@ -506,7 +534,7 @@ data2 <span class="op">%&gt;%</span>
 <p>(spark 2.1.2)</p>
 </div>
 <div id="formatting-dates" class="section level2">
-<h2><span class="header-section-number">7.2</span> Formatting dates</h2>
+<h2><span class="header-section-number">8.2</span> Formatting dates</h2>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -527,20 +555,38 @@ data2 <span class="op">%&gt;%</span>
 <p>(spark 2.2.0)</p>
 </div>
 </div>
-<div id="other-notes-incomplete" class="section level1">
-<h1><span class="header-section-number">8</span> other notes (incomplete)</h1>
+<div id="string-operations" class="section level1">
+<h1><span class="header-section-number">9</span> String Operations</h1>
+<div id="startswith-endswith" class="section level2">
+<h2><span class="header-section-number">9.1</span> startsWith, endsWith</h2>
+<p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
+<span class="kw">endsWith</span>(column, substring)</code></pre></div>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">x=</span><span class="kw">c</span>(<span class="st">&quot;foo&quot;</span>, <span class="st">&quot;bar&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+df <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;y&quot;</span>, <span class="kw">endsWith</span>(<span class="kw">column</span>(<span class="st">&quot;x&quot;</span>), <span class="st">&quot;oo&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##     x     y
+## 1 foo  TRUE
+## 2 bar FALSE</code></pre>
+</div>
+</div>
+<div id="other-notes-draft" class="section level1">
+<h1><span class="header-section-number">10</span> other notes (draft)</h1>
 <div id="web-monitoring-ports" class="section level2">
-<h2><span class="header-section-number">8.1</span> Web Monitoring Ports</h2>
+<h2><span class="header-section-number">10.1</span> Web Monitoring Ports</h2>
 <p>if you start spark locally (–master local[n]), then the 8080 and 8081 ports are not there, only 4040.</p>
 </div>
 <div id="merging-by-a-large-number-of-keys" class="section level2">
-<h2><span class="header-section-number">8.2</span> Merging by a large number of keys</h2>
+<h2><span class="header-section-number">10.2</span> Merging by a large number of keys</h2>
 <p>during merges (and possibly sorts) you may end up with being out of memory with error message like</p>
 <p>java.lang.IllegalArgumentException: Cannot allocate a page with more than 17179869176 bytes</p>
 <p>This is claimed to be related to grouping by key. Spark tries to allocate equal amount of memory for each key, and if the distribution is skewed, it attempts to allocate too much.</p>
 </div>
 <div id="finding-na-s" class="section level2">
-<h2><span class="header-section-number">8.3</span> finding NA-s</h2>
+<h2><span class="header-section-number">10.3</span> finding NA-s</h2>
 <p>I cannot understand how is.nan works. Use instead</p>
 <p>isNull(col)</p>
 <p>or</p>
@@ -548,33 +594,28 @@ data2 <span class="op">%&gt;%</span>
 <p>they can be used for filtering and they mark NA-s as TRUE</p>
 </div>
 <div id="user-defined-functions" class="section level2">
-<h2><span class="header-section-number">8.4</span> User-Defined Functions</h2>
+<h2><span class="header-section-number">10.4</span> User-Defined Functions</h2>
 <p>when doing UDF-s and return data.frame, you may get “Unsupported type for serialization” error. This may be related to the fact that returned data.frame converts strings to factors and sparkR cannot serialize factors. Use stringsAsFactors=FALSE</p>
 </div>
 <div id="parquet-file-for-temporary-data" class="section level2">
-<h2><span class="header-section-number">8.5</span> Parquet file for temporary data</h2>
+<h2><span class="header-section-number">10.5</span> Parquet file for temporary data</h2>
 <p>you cannot easily overwrite parquet file with new data. The old cache remains in memory and it causes errors.</p>
 </div>
 <div id="creating-empty-spark-dataframe" class="section level2">
-<h2><span class="header-section-number">8.6</span> creating empty spark dataframe</h2>
+<h2><span class="header-section-number">10.6</span> creating empty spark dataframe</h2>
 <p>empty R data.frame %&gt;% createDataFrame gives out-of-bounds errors</p>
 </div>
 <div id="rdd-lineage" class="section level2">
-<h2><span class="header-section-number">8.7</span> RDD lineage</h2>
+<h2><span class="header-section-number">10.7</span> RDD lineage</h2>
 <p>java.lang.StackOverflowError may be caused by rdd lineage getting too long</p>
 </div>
 <div id="reading-data" class="section level2">
-<h2><span class="header-section-number">8.8</span> Reading Data</h2>
+<h2><span class="header-section-number">10.8</span> Reading Data</h2>
 <p>read.parquet(): expects a list of files as the first argument read.df() expects a path where to read all the files as the first argument</p>
 <p>(spark 2.2)</p>
 </div>
-<div id="reading-csv-files" class="section level2">
-<h2><span class="header-section-number">8.9</span> reading csv files</h2>
-<p>loadDF(fName, source=“csv”, header=“true”, sep=“,”) default: no header, source not csv, sep=‘,’</p>
-<p>(2.2.1)</p>
-</div>
 <div id="pivot" class="section level2">
-<h2><span class="header-section-number">8.10</span> pivot</h2>
+<h2><span class="header-section-number">10.9</span> pivot</h2>
 <p>don’t pivot on groupBy columns</p>
 </div>
 </div>
