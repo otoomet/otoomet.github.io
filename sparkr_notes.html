@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-08-16" />
+<meta name="date" content="2018-08-29" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-08-16</em></h4>
+<h4 class="date"><em>2018-08-29</em></h4>
 
 </div>
 
@@ -340,12 +340,22 @@ div.tocify {
 <li><code>fName</code> can also be the folder’s name (both with and without the trailing slash) in which case all files in that folder are read. Note: in this case <code>loadDF</code> loads all the files in that folder, including non-csv ones.</li>
 </ul></li>
 <li><code>source</code>: should be “csv” here</li>
-<li><code>header</code>: whether the file contains the first line as column names. Defaults to “false” which reads the eventual header names as the first line, and names columns to <code>_c0</code>, <code>_c1</code> etc. (2.2.0). Note: you have to specify java-ish “true” and “false” (in quotes) here, not R-ish <code>TRUE</code> and <code>FALSE</code>.</li>
+<li><code>header</code>: whether the file contains the first line as column names. Defaults to “false” which reads the eventual header names as the first line, and names columns to <code>_c0</code>, <code>_c1</code> etc. (2.2.0). Note: you have to specify java-ish <code>&quot;true&quot;</code> and <code>&quot;false&quot;</code> (in quotes) here, not R-ish <code>TRUE</code> and <code>FALSE</code>.</li>
 <li><code>sep</code>: field separator, default “,”.</li>
 <li>there are more arguments.</li>
 </ul>
 <p><code>loadDF</code> loads everything as string type, you may want to convert the columns afterwards (this can probably also be achieved by schemas).</p>
 <p>There is an alternative function, <code>read.df</code>, that differs from loadDF by the default arguments.</p>
+</div>
+<div id="parquet-files" class="section level2">
+<h2><span class="header-section-number">3.2</span> Parquet files</h2>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">read.parquet</span>(file)</code></pre></div>
+<ul>
+<li><code>file</code>: file name, actually the name of the folder where parquet holds it’s files
+<ul>
+<li>If you want to read all parquet file (or rather folders) in a directory, you have to specify <code>file</code> as <code>path/to/directory/*</code>. If you leave out the trailing wildcard <code>*</code>, you get an error <em>Unable to infer schema for Parquet</em> (2.3.1).</li>
+</ul></li>
+</ul>
 </div>
 </div>
 <div id="merging-and-lazy-evaluation" class="section level1">
@@ -617,6 +627,12 @@ df <span class="op">%&gt;%</span>
 <div id="pivot" class="section level2">
 <h2><span class="header-section-number">10.9</span> pivot</h2>
 <p>don’t pivot on groupBy columns</p>
+</div>
+<div id="dapply" class="section level2">
+<h2><span class="header-section-number">10.10</span> dapply</h2>
+<p>the chunks fed to dapply are roungly of the size #obs/#partitions. nParallel dapply processes are run in parallel.</p>
+<p>If you get error message <code>error in parallel:::mcfork unable to create a pipe</code> then you may have run out of processes. Spark 2.1.2 and R 3.5.0 did not play nicely with dapply leaving zombies, until you run out of the available processes. In this case fewer partitions may help. Issue seems to be gone when switching to spark 2.3.1.</p>
+<p>One runs a separate dapply process for each partition? At least the number of dapply invocations seems to equal the number of partitions.</p>
 </div>
 </div>
 
