@@ -255,44 +255,62 @@ div.tocify {
 <h1><span class="header-section-number">1</span> Introduction</h1>
 <p>SparkR is a very valuable approach when working with big data. Unfortunately it’s documentation is rather sparse. Here I have collected a number of solutions and explanations I have been struggling myself and hope others may find useful.</p>
 </div>
+<div id="general-concepts" class="section level1">
+<h1><span class="header-section-number">2</span> General concepts</h1>
+<div id="rdd" class="section level2">
+<h2><span class="header-section-number">2.1</span> RDD</h2>
+<p>The central data structure in spark is <em>Resilient Distributed Dataset</em> (RDD). Resilient means it can be recovered using an earlier stage and the <em>RDD lineage</em> information.</p>
+<p>So RDD is not just dataset: a number in RDD is not just a number, but a number plus information where this number comes from.</p>
+<div id="checkpointing" class="section level3">
+<h3><span class="header-section-number">2.1.1</span> Checkpointing</h3>
+<p>As one operates repeatedly on the same data, the RDD lineage may grow without limits. This happens, for instance, if you add data to an RDD in a loop, and each time also filter out certain observations. This manifests with RDD operations getting slower and slower, one may also get <code>java.lang.StackOverflowError</code>-s. A very valuable resource for seeing and debugging the RDD lineages is the web monitoring port 4040 (the default value).</p>
+<p>A way to <em>break the lineage</em> is to use <em>checkpointing</em>. Checkpointing saves the current dataframe as “just data”, without any historical information. All the following execution plans take the resulting dataframe as a blank sheet (well, blank in terms of lineage, not data content!).</p>
+<p>Checkpointing can be done like this:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">setCheckpointDir</span>(<span class="st">&quot;/tmp&quot;</span>)
+                           <span class="co"># note: have to set checkpoint dir</span>
+df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code></pre></div>
+<p>Now <code>df2</code> is a lineage-less dataframe.</p>
+</div>
+</div>
+</div>
 <div id="configuration" class="section level1">
-<h1><span class="header-section-number">2</span> Configuration</h1>
+<h1><span class="header-section-number">3</span> Configuration</h1>
 <div id="getting-run-time-configuration" class="section level2">
-<h2><span class="header-section-number">2.1</span> Getting Run-Time Configuration</h2>
+<h2><span class="header-section-number">3.1</span> Getting Run-Time Configuration</h2>
 <p>The basic run-time configuration can be returned by <code>sparkR.conf()</code>. Without any arguments it returns all set options:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">sparkR.conf</span>()</code></pre></div>
 <pre><code>## $log4j.logger.org.apache.parquet
 ## [1] &quot;INFO&quot;
 ## 
 ## $spark.app.id
-## [1] &quot;local-1525370856325&quot;
+## [1] &quot;local-1535603215389&quot;
 ## 
 ## $spark.app.name
 ## [1] &quot;sparkNotes&quot;
 ## 
 ## $spark.driver.host
-## [1] &quot;172.28.100.25&quot;
+## [1] &quot;10.0.0.21&quot;
 ## 
 ## $spark.driver.memory
 ## [1] &quot;8g&quot;
 ## 
 ## $spark.driver.port
-## [1] &quot;32847&quot;
-## 
-## $spark.executorEnv.LD_LIBRARY_PATH
-## [1] &quot;$LD_LIBRARY_PATH:/usr/lib/R/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/jvm/default-java/jre/lib/amd64/server&quot;
+## [1] &quot;45605&quot;
 ## 
 ## $spark.executor.id
 ## [1] &quot;driver&quot;
 ## 
+## $spark.executorEnv.LD_LIBRARY_PATH
+## [1] &quot;$LD_LIBRARY_PATH:/usr/lib/R/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/jvm/default-java/lib/server&quot;
+## 
 ## $spark.home
-## [1] &quot;/home/otoomet/local/spark-2.2.0-bin-hadoop2.7&quot;
+## [1] &quot;/home/siim/local/spark-2.3.1-bin-hadoop2.7&quot;
 ## 
 ## $spark.master
 ## [1] &quot;local[2]&quot;
 ## 
 ## $spark.r.sql.derby.temp.dir
-## [1] &quot;/tmp/Rtmp4obyl4&quot;
+## [1] &quot;/tmp/RtmpqKGPxd&quot;
 ## 
 ## $spark.sql.catalogImplementation
 ## [1] &quot;hive&quot;
@@ -301,11 +319,14 @@ div.tocify {
 ## [1] &quot;gzip&quot;
 ## 
 ## $spark.submit.deployMode
-## [1] &quot;client&quot;</code></pre>
+## [1] &quot;client&quot;
+## 
+## $spark.ui.showConsoleProgress
+## [1] &quot;true&quot;</code></pre>
 <p>Note that there is no obvious entry for parallelism. When invoked locally, it is visible in the for of “master[2]”, but no separate entry is provided (2.2.1).</p>
 </div>
 <div id="compression-codecs" class="section level2">
-<h2><span class="header-section-number">2.2</span> Compression Codecs</h2>
+<h2><span class="header-section-number">3.2</span> Compression Codecs</h2>
 <p>By default, spark compresses parquet files by snappy codec which creates rather large temporary files. You have to configure it explicitly to use something else, such as “gzip”. The codec must be specificed during the spark session initialization through <em>sparkConfig</em> argument. <em>sparkConfig</em> is a list of configuration options in the form of <em>name</em> = <em>value</em> and name for parquet compression is <em>spark.sql.parquet.compression.codec</em>. Value must be a string. For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[8]&quot;</span>,
                      <span class="dt">appName =</span> <span class="st">&quot;mySparkApp&quot;</span>,
@@ -313,8 +334,16 @@ div.tocify {
                      )</code></pre></div>
 <p>Note: this must be done when spark session is initialized, later calls to <code>sparkR.conf</code> do not work. Neither can you configure spark before you have initialized the sparkSession.</p>
 </div>
+<div id="java-heap-memory" class="section level2">
+<h2><span class="header-section-number">3.3</span> Java heap memory</h2>
+<p>Spark driver memory can be set when creating the spark session with the <code>spark.driver.memory</code> option. It takes character values like <code>&quot;4g&quot;</code>:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[2]&quot;</span>,
+                     <span class="dt">sparkConfig=</span><span class="kw">list</span>(<span class="dt">spark.driver.memory=</span><span class="st">&quot;8g&quot;</span>)
+                     )</code></pre></div>
+<p>If this is too small, you get java out-of-memory errors related to java heap space.</p>
+</div>
 <div id="temporary-directories" class="section level2">
-<h2><span class="header-section-number">2.3</span> Temporary Directories</h2>
+<h2><span class="header-section-number">3.4</span> Temporary Directories</h2>
 <p>Spark stores quite a bit of temporary data on disk so you should ensure you have plenty of disk space. The location of temporary folders can be set in the environment variable <code>SPARK_LOCAL_DIRS</code> as a comma-separated list of directories:</p>
 <div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">SPARK_LOCAL_DIRS=</span><span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/tmp,/tmp&quot;</span></code></pre></div>
 <p>This creates temporary folders in two locations, one in <code>$HOME/tmp</code> and another in <code>/tmp</code>. The folders appear in pairs, names like <code>blockmgr-6e392c2c...</code> and <code>spark-f0e4221e...</code>.</p>
@@ -322,9 +351,9 @@ div.tocify {
 </div>
 </div>
 <div id="data-input" class="section level1">
-<h1><span class="header-section-number">3</span> Data Input</h1>
+<h1><span class="header-section-number">4</span> Data Input</h1>
 <div id="how-to-read-csv-files" class="section level2">
-<h2><span class="header-section-number">3.1</span> How to read csv files</h2>
+<h2><span class="header-section-number">4.1</span> How to read csv files</h2>
 <p>CSV files are one of the most common and versatile forms of data. SparkR reads these pretty well but unfortunately, the documentation is not good enough to get started. The basic syntax is:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">loadDF</span>(fName,
        <span class="dt">source=</span><span class="st">&quot;csv&quot;</span>,
@@ -348,7 +377,7 @@ div.tocify {
 <p>There is an alternative function, <code>read.df</code>, that differs from loadDF by the default arguments.</p>
 </div>
 <div id="parquet-files" class="section level2">
-<h2><span class="header-section-number">3.2</span> Parquet files</h2>
+<h2><span class="header-section-number">4.2</span> Parquet files</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">read.parquet</span>(file)</code></pre></div>
 <ul>
 <li><code>file</code>: file name, actually the name of the folder where parquet holds it’s files
@@ -358,8 +387,59 @@ div.tocify {
 </ul>
 </div>
 </div>
-<div id="merging-and-lazy-evaluation" class="section level1">
-<h1><span class="header-section-number">4</span> Merging and Lazy Evaluation</h1>
+<div id="general-operations" class="section level1">
+<h1><span class="header-section-number">5</span> General operations</h1>
+<div id="accessing-columns" class="section level2">
+<h2><span class="header-section-number">5.1</span> Accessing columns</h2>
+<p>One can access single columns with the <code>$</code>-operator and the <code>column</code> function. The <code>$</code>-operator works in a fairly similar manner than for ordinary data frames. Note that in case of piping where your intermediate dataframe does not have a name, you may access the columns with <code>.$</code> way like <code>.$foo</code>.</p>
+<p>Function <code>column</code> is an alternative, it takes column name as a character: <code>column(&quot;foo&quot;)</code>.</p>
+</div>
+</div>
+<div id="merging" class="section level1">
+<h1><span class="header-section-number">6</span> Merging</h1>
+<div id="merging-and-joining" class="section level2">
+<h2><span class="header-section-number">6.1</span> Merging and joining</h2>
+<p>SparkR features two similar functions: <code>merge</code> and <code>join</code>. They do not behave in quite the same manner.</p>
+<p>Merge syntax is rather similar to that of base::merge:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(x, y, by, suffixes)</code></pre></div>
+<ul>
+<li><code>x</code>, <code>y</code> are data frame to be merged.</li>
+<li><code>by</code> is a vector of key columns, by default columns with similar name in both data frames.
+<ul>
+<li><code>by</code> columns can be of different type, for instance integer and double columns still match.</li>
+</ul></li>
+<li><code>suffixes</code> is a character vector of 2 specifying different suffixes for <code>x</code> and <code>y</code> to make unique names.
+<ul>
+<li>Even if you want to retain just one version of the variable with it’s original name, you cannot specify something like <code>suffices=c(&quot;&quot;, &quot;_y&quot;)</code>. You get an error. (2.2.0)</li>
+</ul></li>
+</ul>
+<div id="merge-renames-variables-2.2.0" class="section level3">
+<h3><span class="header-section-number">6.1.1</span> Merge renames variables (2.2.0)</h3>
+<p>If merging two data frames on a column of similar name, <code>merge</code> creates new variables like <code>foo_x</code> and <code>foo_y</code> according to the respective origin data frame. For instance:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">11</span><span class="op">:</span><span class="dv">12</span>, <span class="dt">c=</span><span class="kw">c</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;b&quot;</span>)))
+bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">21</span><span class="op">:</span><span class="dv">22</span>, <span class="dt">d=</span><span class="kw">c</span>(<span class="st">&quot;x&quot;</span>, <span class="st">&quot;y&quot;</span>)))
+<span class="kw">merge</span>(foo, bar, <span class="dt">by=</span><span class="st">&quot;a&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a_x  b c a_y  b d
+## 1   1 11 a   1 21 x
+## 2   2 12 b   2 22 y</code></pre>
+<p>If, instead of <code>by</code>, you specify both <code>by.x</code> and <code>by.y</code>, then it also renames the <code>b</code>-s:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(foo, bar, <span class="dt">by.x=</span><span class="st">&quot;a&quot;</span>, <span class="dt">by.y=</span><span class="st">&quot;a&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a_x b_x c a_y b_y d
+## 1   1  11 a   1  21 x
+## 2   2  12 b   2  22 y</code></pre>
+<p>Join, in turn, does not rename but still keeps both version of the join column in the data:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">join</span>(foo, bar, foo<span class="op">$</span>a <span class="op">==</span><span class="st"> </span>bar<span class="op">$</span>a) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a  b c a  b d
+## 1 1 11 a 1 21 x
+## 2 2 12 b 2 22 y</code></pre>
+</div>
+<div id="merging-and-trivial-join-conditions" class="section level3">
+<h3><span class="header-section-number">6.1.2</span> Merging and “trivial” join conditions</h3>
+<p>As stressed above, RDD is not just data but also information about how the data was created. <code>merge</code> can use some of this lineage information.</p>
+</div>
+</div>
+<div id="merging-and-lazy-evaluation" class="section level2">
+<h2><span class="header-section-number">6.2</span> Merging and lazy evaluation</h2>
 <p>Spark’s lazy evaluation makes debugging hard, the code may fail before it even reaches the problematic line.</p>
 <p>For instance, when ordering before merging where the merge introduces ambiguous columns you may see an error like:</p>
 <pre><code>org.apache.spark.sql.AnalysisException: Reference 'b' is ambiguous, could be: b#3, b#10.;</code></pre>
@@ -387,8 +467,9 @@ foo <span class="op">%&gt;%</span>
 <p>By removing <code>rename(a = column(&quot;a_x&quot;))</code> at the end of the previous example the code works, I guess this is related to how well can the code translated to spark execution plans.</p>
 <p>(Spark 2.2.1)</p>
 </div>
+</div>
 <div id="ordering-by-group" class="section level1">
-<h1><span class="header-section-number">5</span> Ordering by Group</h1>
+<h1><span class="header-section-number">7</span> Ordering by Group</h1>
 <p>Many common tasks require ordering by group. SparkR has multi-column ordering function (<code>arrange</code>) and multi-column grouping (<code>groupBy</code>). Unfortunately, these two do not play together. Assume we have temperature data</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">month =</span> <span class="kw">c</span>(<span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Dec&quot;</span>, <span class="st">&quot;Dec&quot;</span>), <span class="dt">day=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">15</span>,<span class="dv">1</span>,<span class="dv">15</span>), <span class="dt">temp=</span><span class="kw">c</span>(<span class="dv">14</span>,<span class="dv">12</span>,<span class="dv">10</span>,<span class="dv">12</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()
@@ -406,7 +487,7 @@ temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">agg</span>(<span class="dt">maxDay =</span> day[<span class="dv">1</span>])</code></pre></div>
 <p>as grouped data cannot be arranged in spark.</p>
 <div id="window-functions" class="section level2">
-<h2><span class="header-section-number">5.1</span> Window Functions</h2>
+<h2><span class="header-section-number">7.1</span> Window Functions</h2>
 <p>A correct solution seems to be to use window functions. Windows in SQL parlance are blocks of rows where one can do certain operations. Windows can be defined in a different ways, here we are interested partitioning data by keys into windows. This can be done as <code>windowPartitionBy(&quot;month&quot;)</code>. This tells spark that data must be “partitioned” by month (I guess the ‘partition’ here not the same as RDD partition), and we can operate separately on these partitions.</p>
 <p>Now we want to order the partitions by temperature. This can be achieved by <code>ws &lt;- orderBy(windowPartitionBy(&quot;month&quot;), &quot;temp&quot;)</code>. Note we first define window partition, and thereafter it’s ordering. These operations form our <em>window specification</em> <code>ws</code>. This is just specification, we haven’t touched the data yet.</p>
 <p>When done with window specification, one can use window functions. These can be invoked by <code>over(x, window)</code> where <code>x</code> is a column, mostly likely computed via window functions, and <code>window</code> is the window spec we defined above. To solve the task above, we can add the row number (i.e. temperature rank) for each day in month. So we can do:</p>
@@ -432,7 +513,7 @@ temp <span class="op">%&gt;%</span>
 <p>Obviously, in the final version we may drop obsolete variables and order the data according to month.</p>
 </div>
 <div id="arrange---groupby" class="section level2">
-<h2><span class="header-section-number">5.2</span> <code>arrange</code> - <code>groupBy</code></h2>
+<h2><span class="header-section-number">7.2</span> <code>arrange</code> - <code>groupBy</code></h2>
 <p>Note: it is tempting to do go the following way instead:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">arrange</span>(<span class="kw">column</span>(<span class="st">&quot;month&quot;</span>), <span class="kw">desc</span>(<span class="kw">column</span>(<span class="st">&quot;temp&quot;</span>))) <span class="op">%&gt;%</span>
@@ -446,7 +527,7 @@ temp <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="how-to-rename-columns" class="section level1">
-<h1><span class="header-section-number">6</span> How to Rename Columns</h1>
+<h1><span class="header-section-number">8</span> How to Rename Columns</h1>
 <p>There are two built-in functions for renaming. <code>rename</code> expects a list of arguments in the form of <code>newName = existingColumn</code> (after the data frame argument). Note: this is quoted or unquoted name = column, the right hand side must not be just a column name. This is perhaps the easiest way to rename variables:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="kw">c</span>(<span class="st">&quot;Huang&quot;</span>, <span class="st">&quot;Goyal&quot;</span>)))
 data <span class="op">%&gt;%</span>
@@ -478,7 +559,7 @@ data <span class="op">%&gt;%</span>
 ## 2  2 Goyal</code></pre>
 </div>
 <div id="arrange" class="section level1">
-<h1><span class="header-section-number">7</span> arrange</h1>
+<h1><span class="header-section-number">9</span> arrange</h1>
 <p>Spark dataframes can be ordered by <code>arrange</code> function. It orders the data by “natural order”, i.e. alphabetically for character columns and in numeric order for numerics. The syntax is similar to that of <em>dplyr</em>: <code>arrange(col, col, ...)</code>. However, there are two separate functions:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">arrange</span>(<span class="st">&quot;col1&quot;</span>, <span class="st">&quot;col2&quot;</span>, ...)</code></pre></div>
 <p>and</p>
@@ -504,9 +585,9 @@ data <span class="op">%&gt;%</span>
 <p>(2.2.1)</p>
 </div>
 <div id="handling-dates" class="section level1">
-<h1><span class="header-section-number">8</span> Handling Dates</h1>
+<h1><span class="header-section-number">10</span> Handling Dates</h1>
 <div id="timestamps" class="section level2">
-<h2><span class="header-section-number">8.1</span> Timestamps</h2>
+<h2><span class="header-section-number">10.1</span> Timestamps</h2>
 <p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. The spark internal format of choice would be <em>utc_timestamp</em>, the timestamp in UTC time zone. The way there may be slightly circuituous:</p>
 <ol style="list-style-type: decimal">
 <li><p>Convert the character representation (say, column “date”) into <em>unix_timestamp</em> with</p>
@@ -519,18 +600,7 @@ data <span class="op">%&gt;%</span>
                        <span class="co"># use AFT time zone</span></code></pre></div>
 <p><strong>Warning</strong>: if the time zone acronym is unknown, it will be silently ignored.</p></li>
 </ol>
-<p>An example script that performs all these tasks:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">date=</span><span class="kw">c</span>(<span class="st">&quot;3/22 2014 18:44:33&quot;</span>, <span class="st">&quot;5/3 2018 11:04:11&quot;</span>)))
-data2 &lt;-<span class="st"> </span>data <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">cast</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;timestamp&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>))
-data2 <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##                  date
-## 1 2014-03-22 14:14:33
-## 2 2018-05-03 06:34:11</code></pre>
-<p>Indeed, UTC time is less than Kabul time by 4 hours 30 mins.</p>
+<p>An example script that performs all these tasks: <code>{r dateConvertExample1 } data &lt;- createDataFrame(data.frame(date=c(&quot;3/22 2014 18:44:33&quot;, &quot;5/3 2018 11:04:11&quot;))) data2 &lt;- data %&gt;%    withColumn(&quot;date&quot;, unix_timestamp(column(&quot;date&quot;), &quot;MM/dd yyyy HH:mm:ss&quot;)) %&gt;%    withColumn(&quot;date&quot;, cast(column(&quot;date&quot;), &quot;timestamp&quot;)) %&gt;%    withColumn(&quot;date&quot;, to_utc_timestamp(column(&quot;date&quot;), &quot;Asia/Kabul&quot;)) data2 %&gt;%    collect()</code> Indeed, UTC time is less than Kabul time by 4 hours 30 mins.</p>
 <p>The above can also be achieved in a more compact manner as:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>) <span class="op">%&gt;%</span>
@@ -544,7 +614,7 @@ data2 <span class="op">%&gt;%</span>
 <p>(spark 2.1.2)</p>
 </div>
 <div id="formatting-dates" class="section level2">
-<h2><span class="header-section-number">8.2</span> Formatting dates</h2>
+<h2><span class="header-section-number">10.2</span> Formatting dates</h2>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -566,9 +636,9 @@ data2 <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="string-operations" class="section level1">
-<h1><span class="header-section-number">9</span> String Operations</h1>
+<h1><span class="header-section-number">11</span> String Operations</h1>
 <div id="startswith-endswith" class="section level2">
-<h2><span class="header-section-number">9.1</span> startsWith, endsWith</h2>
+<h2><span class="header-section-number">11.1</span> startsWith, endsWith</h2>
 <p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
 <span class="kw">endsWith</span>(column, substring)</code></pre></div>
@@ -584,19 +654,19 @@ df <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
-<h1><span class="header-section-number">10</span> other notes (draft)</h1>
+<h1><span class="header-section-number">12</span> other notes (draft)</h1>
 <div id="web-monitoring-ports" class="section level2">
-<h2><span class="header-section-number">10.1</span> Web Monitoring Ports</h2>
+<h2><span class="header-section-number">12.1</span> Web Monitoring Ports</h2>
 <p>if you start spark locally (–master local[n]), then the 8080 and 8081 ports are not there, only 4040.</p>
 </div>
 <div id="merging-by-a-large-number-of-keys" class="section level2">
-<h2><span class="header-section-number">10.2</span> Merging by a large number of keys</h2>
+<h2><span class="header-section-number">12.2</span> Merging by a large number of keys</h2>
 <p>during merges (and possibly sorts) you may end up with being out of memory with error message like</p>
 <p>java.lang.IllegalArgumentException: Cannot allocate a page with more than 17179869176 bytes</p>
 <p>This is claimed to be related to grouping by key. Spark tries to allocate equal amount of memory for each key, and if the distribution is skewed, it attempts to allocate too much.</p>
 </div>
 <div id="finding-na-s" class="section level2">
-<h2><span class="header-section-number">10.3</span> finding NA-s</h2>
+<h2><span class="header-section-number">12.3</span> finding NA-s</h2>
 <p>I cannot understand how is.nan works. Use instead</p>
 <p>isNull(col)</p>
 <p>or</p>
@@ -604,32 +674,28 @@ df <span class="op">%&gt;%</span>
 <p>they can be used for filtering and they mark NA-s as TRUE</p>
 </div>
 <div id="user-defined-functions" class="section level2">
-<h2><span class="header-section-number">10.4</span> User-Defined Functions</h2>
+<h2><span class="header-section-number">12.4</span> User-Defined Functions</h2>
 <p>when doing UDF-s and return data.frame, you may get “Unsupported type for serialization” error. This may be related to the fact that returned data.frame converts strings to factors and sparkR cannot serialize factors. Use stringsAsFactors=FALSE</p>
 </div>
 <div id="parquet-file-for-temporary-data" class="section level2">
-<h2><span class="header-section-number">10.5</span> Parquet file for temporary data</h2>
+<h2><span class="header-section-number">12.5</span> Parquet file for temporary data</h2>
 <p>you cannot easily overwrite parquet file with new data. The old cache remains in memory and it causes errors.</p>
 </div>
 <div id="creating-empty-spark-dataframe" class="section level2">
-<h2><span class="header-section-number">10.6</span> creating empty spark dataframe</h2>
+<h2><span class="header-section-number">12.6</span> creating empty spark dataframe</h2>
 <p>empty R data.frame %&gt;% createDataFrame gives out-of-bounds errors</p>
 </div>
-<div id="rdd-lineage" class="section level2">
-<h2><span class="header-section-number">10.7</span> RDD lineage</h2>
-<p>java.lang.StackOverflowError may be caused by rdd lineage getting too long</p>
-</div>
 <div id="reading-data" class="section level2">
-<h2><span class="header-section-number">10.8</span> Reading Data</h2>
+<h2><span class="header-section-number">12.7</span> Reading Data</h2>
 <p>read.parquet(): expects a list of files as the first argument read.df() expects a path where to read all the files as the first argument</p>
 <p>(spark 2.2)</p>
 </div>
 <div id="pivot" class="section level2">
-<h2><span class="header-section-number">10.9</span> pivot</h2>
+<h2><span class="header-section-number">12.8</span> pivot</h2>
 <p>don’t pivot on groupBy columns</p>
 </div>
 <div id="dapply" class="section level2">
-<h2><span class="header-section-number">10.10</span> dapply</h2>
+<h2><span class="header-section-number">12.9</span> dapply</h2>
 <p>the chunks fed to dapply are roungly of the size #obs/#partitions. nParallel dapply processes are run in parallel.</p>
 <p>If you get error message <code>error in parallel:::mcfork unable to create a pipe</code> then you may have run out of processes. Spark 2.1.2 and R 3.5.0 did not play nicely with dapply leaving zombies, until you run out of the available processes. In this case fewer partitions may help. Issue seems to be gone when switching to spark 2.3.1.</p>
 <p>One runs a separate dapply process for each partition? At least the number of dapply invocations seems to equal the number of partitions.</p>
