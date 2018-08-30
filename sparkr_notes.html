@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-08-29" />
+<meta name="date" content="2018-08-30" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-08-29</em></h4>
+<h4 class="date"><em>2018-08-30</em></h4>
 
 </div>
 
@@ -435,7 +435,31 @@ bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span 
 </div>
 <div id="merging-and-trivial-join-conditions" class="section level3">
 <h3><span class="header-section-number">6.1.2</span> Merging and “trivial” join conditions</h3>
-<p>As stressed above, RDD is not just data but also information about how the data was created. <code>merge</code> can use some of this lineage information.</p>
+<p>As stressed above, RDD is not just data but also information about how the data was created. <code>merge</code> can use some of this lineage information. In particular, if the key column is created through <code>lit()</code> constant, it refuses to merge. See the following examples:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">3</span><span class="op">:</span><span class="dv">4</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">createDataFrame</span>()
+foo <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a b
+## 1 1 3
+## 2 2 4</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bar &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">c=</span><span class="dv">5</span><span class="op">:</span><span class="dv">6</span>, <span class="dt">a=</span><span class="kw">c</span>(0L,0L)) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">createDataFrame</span>()
+bar <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   c a
+## 1 5 0
+## 2 6 0</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(foo, bar, <span class="dt">all.x=</span><span class="ot">TRUE</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a_x b  c a_y
+## 1   1 3 NA  NA
+## 2   2 4 NA  NA</code></pre>
+<p>Here we create two dataframes, <code>foo</code> and <code>bar</code> and merge these on column <code>a</code>. As there are no common key values, the variables inherited from <code>bar</code> are all missing. This is to be expected.</p>
+<p>Now let’s modify this example with literal constants:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">baz &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">c=</span><span class="dv">5</span><span class="op">:</span><span class="dv">6</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">createDataFrame</span>() <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">withColumn</span>(<span class="st">&quot;a&quot;</span>, <span class="kw">lit</span>(<span class="dv">0</span>))
+baz <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   c a
+## 1 5 0
+## 2 6 0</code></pre>
+<p>So the <code>baz</code> dataframe looks the same as <code>bar</code> above. However, now merge knows that the keys are just constants:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(foo, baz, <span class="dt">all.x=</span><span class="ot">TRUE</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<p>fails with <em>Join condition is missing or trivial</em> error. Remember: dataframe is not just data but also the lineage information!</p>
 </div>
 </div>
 <div id="merging-and-lazy-evaluation" class="section level2">
