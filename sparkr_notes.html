@@ -407,8 +407,8 @@ dfa</code></pre></div>
 </ul>
 </div>
 </div>
-<div id="working-with-data" class="section level1">
-<h1><span class="header-section-number">5</span> Working with data</h1>
+<div id="working-with-data-the-map-part" class="section level1">
+<h1><span class="header-section-number">5</span> Working with data: the <em>map</em> part</h1>
 <div id="accessing-columns" class="section level2">
 <h2><span class="header-section-number">5.1</span> Accessing columns</h2>
 <p>One can access single columns with the <code>$</code>-operator and the <code>column</code> function. The <code>$</code>-operator works in a fairly similar manner than for ordinary data frames. Note that in case of piping where your intermediate dataframe does not have a name, you may access the columns with <code>.$</code> way like <code>.$foo</code>.</p>
@@ -474,11 +474,70 @@ data <span class="op">%&gt;%</span>
 ## 1  1 Huang
 ## 2  2 Goyal</code></pre>
 </div>
+<div id="working-with-strings" class="section level2">
+<h2><span class="header-section-number">5.4</span> Working with strings</h2>
+<div id="substrings-with-substr" class="section level3">
+<h3><span class="header-section-number">5.4.1</span> substrings with <code>substr</code></h3>
+<p>Substrings can be created with <code>substr</code>. It’s syntax is simple:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">substr</span>(x, start, end)</code></pre></div>
+<ul>
+<li><code>x</code> is a column</li>
+<li><code>start</code>, <code>end</code> are the (1-based) start and end positions in the string. <code>start</code> and <code>end</code> must be specified, you cannot leave one out to take everything. <code>Inf</code> is not allowed either.</li>
+</ul>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">names=</span><span class="kw">c</span>(<span class="st">&quot;Barnier&quot;</span>, <span class="st">&quot;Beto&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">substr</span>(<span class="kw">column</span>(<span class="st">&quot;names&quot;</span>), <span class="dv">3</span>, <span class="dv">20</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##     names      x
+## 1 Barnier arnier
+## 2    Beto    eto</code></pre>
+<p>This extracts characters 3 to 30 (i.e. from 3 till end) from these names.</p>
+<p><strong>Warning</strong>: in SparkR &lt; 2.3.0, start position was to be given <em>one past</em> the first character to be extracted. So in the example above, one has to use <code>substr(column(&quot;names&quot;), 4, 20)</code></p>
+</div>
+<div id="startswith-endswith" class="section level3">
+<h3><span class="header-section-number">5.4.2</span> startsWith, endsWith</h3>
+<p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
+<span class="kw">endsWith</span>(column, substring)</code></pre></div>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">x=</span><span class="kw">c</span>(<span class="st">&quot;foo&quot;</span>, <span class="st">&quot;bar&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+df <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;y&quot;</span>, <span class="kw">endsWith</span>(<span class="kw">column</span>(<span class="st">&quot;x&quot;</span>), <span class="st">&quot;oo&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##     x     y
+## 1 foo  TRUE
+## 2 bar FALSE</code></pre>
+</div>
+</div>
+</div>
+<div id="working-with-data-the-reduce-part" class="section level1">
+<h1><span class="header-section-number">6</span> Working with data: the <em>reduce</em> part</h1>
+<div id="aggregating-with-agg" class="section level2">
+<h2><span class="header-section-number">6.1</span> aggregating with <code>agg</code></h2>
+<p><code>agg</code> is the general aggregation function. It takes the data frame and aggregation arguments. For instance, let’s count the number of non-missing entries in a data frame:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="kw">c</span>(<span class="dv">4</span>, <span class="dv">1</span>,<span class="ot">NA</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+<span class="kw">collect</span>(df)</code></pre></div>
+<pre><code>##    a
+## 1  4
+## 2  1
+## 3 NA</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;b&quot;</span>, <span class="kw">cast</span>(<span class="kw">isNotNull</span>(<span class="kw">column</span>(<span class="st">&quot;a&quot;</span>)), <span class="st">&quot;integer&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">agg</span>(<span class="dt">n =</span> <span class="kw">sum</span>(<span class="kw">column</span>(<span class="st">&quot;b&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   n
+## 1 2</code></pre>
+<p>This will result in a dataframe that contain one column, <em>n</em>, value of which is the desired value. Here aggregation is determined by the <code>sum</code> function, an <code>agg</code>-s helper function, that takes a numeric column (this is why we have to cast the logical column to an integer).</p>
+<p>Agg is very much similar to dplyr’s <code>summarize</code> function: it aggregates data, but one must supply the aggregation rule.</p>
+</div>
 </div>
 <div id="merging" class="section level1">
-<h1><span class="header-section-number">6</span> Merging</h1>
+<h1><span class="header-section-number">7</span> Merging</h1>
 <div id="merging-and-joining" class="section level2">
-<h2><span class="header-section-number">6.1</span> Merging and joining</h2>
+<h2><span class="header-section-number">7.1</span> Merging and joining</h2>
 <p>SparkR features two similar functions: <code>merge</code> and <code>join</code>. They do not behave in quite the same manner.</p>
 <p>Merge syntax is rather similar to that of base::merge:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(x, y, by, suffixes)</code></pre></div>
@@ -494,7 +553,7 @@ data <span class="op">%&gt;%</span>
 </ul></li>
 </ul>
 <div id="merge-renames-variables-2.2.0" class="section level3">
-<h3><span class="header-section-number">6.1.1</span> Merge renames variables (2.2.0)</h3>
+<h3><span class="header-section-number">7.1.1</span> Merge renames variables (2.2.0)</h3>
 <p>If merging two data frames on a column of similar name, <code>merge</code> creates new variables like <code>foo_x</code> and <code>foo_y</code> according to the respective origin data frame. For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">11</span><span class="op">:</span><span class="dv">12</span>, <span class="dt">c=</span><span class="kw">c</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;b&quot;</span>)))
 bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">21</span><span class="op">:</span><span class="dv">22</span>, <span class="dt">d=</span><span class="kw">c</span>(<span class="st">&quot;x&quot;</span>, <span class="st">&quot;y&quot;</span>)))
@@ -514,7 +573,7 @@ bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span 
 ## 2 2 12 b 2 22 y</code></pre>
 </div>
 <div id="merging-and-trivial-join-conditions" class="section level3">
-<h3><span class="header-section-number">6.1.2</span> Merging and “trivial” join conditions</h3>
+<h3><span class="header-section-number">7.1.2</span> Merging and “trivial” join conditions</h3>
 <p>As stressed above, RDD is not just data but also information about how the data was created. <code>merge</code> can use some of this lineage information. In particular, if the key column is created through <code>lit()</code> constant, it refuses to merge. See the following examples:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">3</span><span class="op">:</span><span class="dv">4</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">createDataFrame</span>()
 foo <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
@@ -543,7 +602,7 @@ baz <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">coll
 </div>
 </div>
 <div id="merging-and-lazy-evaluation" class="section level2">
-<h2><span class="header-section-number">6.2</span> Merging and lazy evaluation</h2>
+<h2><span class="header-section-number">7.2</span> Merging and lazy evaluation</h2>
 <p>Spark’s lazy evaluation makes debugging hard, the code may fail before it even reaches the problematic line.</p>
 <p>For instance, when ordering before merging where the merge introduces ambiguous columns you may see an error like:</p>
 <pre><code>org.apache.spark.sql.AnalysisException: Reference 'b' is ambiguous, could be: b#3, b#10.;</code></pre>
@@ -573,7 +632,7 @@ foo <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="ordering-by-group" class="section level1">
-<h1><span class="header-section-number">7</span> Ordering by Group</h1>
+<h1><span class="header-section-number">8</span> Ordering by Group</h1>
 <p>Many common tasks require ordering by group. SparkR has multi-column ordering function (<code>arrange</code>) and multi-column grouping (<code>groupBy</code>). Unfortunately, these two do not play together. Assume we have temperature data</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">month =</span> <span class="kw">c</span>(<span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Dec&quot;</span>, <span class="st">&quot;Dec&quot;</span>), <span class="dt">day=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">15</span>,<span class="dv">1</span>,<span class="dv">15</span>), <span class="dt">temp=</span><span class="kw">c</span>(<span class="dv">14</span>,<span class="dv">12</span>,<span class="dv">10</span>,<span class="dv">12</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()
@@ -591,7 +650,7 @@ temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">agg</span>(<span class="dt">maxDay =</span> day[<span class="dv">1</span>])</code></pre></div>
 <p>as grouped data cannot be arranged in spark.</p>
 <div id="window-functions" class="section level2">
-<h2><span class="header-section-number">7.1</span> Window Functions</h2>
+<h2><span class="header-section-number">8.1</span> Window Functions</h2>
 <p>A correct solution seems to be to use window functions. Windows in SQL parlance are blocks of rows where one can do certain operations. Windows can be defined in a different ways, here we are interested partitioning data by keys into windows. This can be done as <code>windowPartitionBy(&quot;month&quot;)</code>. This tells spark that data must be “partitioned” by month (I guess the ‘partition’ here not the same as RDD partition), and we can operate separately on these partitions.</p>
 <p>Now we want to order the partitions by temperature. This can be achieved by <code>ws &lt;- orderBy(windowPartitionBy(&quot;month&quot;), &quot;temp&quot;)</code>. Note we first define window partition, and thereafter it’s ordering. These operations form our <em>window specification</em> <code>ws</code>. This is just specification, we haven’t touched the data yet.</p>
 <p>When done with window specification, one can use window functions. These can be invoked by <code>over(x, window)</code> where <code>x</code> is a column, mostly likely computed via window functions, and <code>window</code> is the window spec we defined above. To solve the task above, we can add the row number (i.e. temperature rank) for each day in month. So we can do:</p>
@@ -617,7 +676,7 @@ temp <span class="op">%&gt;%</span>
 <p>Obviously, in the final version we may drop obsolete variables and order the data according to month.</p>
 </div>
 <div id="arrange---groupby" class="section level2">
-<h2><span class="header-section-number">7.2</span> <code>arrange</code> - <code>groupBy</code></h2>
+<h2><span class="header-section-number">8.2</span> <code>arrange</code> - <code>groupBy</code></h2>
 <p>Note: it is tempting to do go the following way instead:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">arrange</span>(<span class="kw">column</span>(<span class="st">&quot;month&quot;</span>), <span class="kw">desc</span>(<span class="kw">column</span>(<span class="st">&quot;temp&quot;</span>))) <span class="op">%&gt;%</span>
@@ -631,7 +690,7 @@ temp <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="arrange" class="section level1">
-<h1><span class="header-section-number">8</span> arrange</h1>
+<h1><span class="header-section-number">9</span> arrange</h1>
 <p>Spark dataframes can be ordered by <code>arrange</code> function. It orders the data by “natural order”, i.e. alphabetically for character columns and in numeric order for numerics. The syntax is similar to that of <em>dplyr</em>: <code>arrange(col, col, ...)</code>. However, there are two separate functions:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">arrange</span>(<span class="st">&quot;col1&quot;</span>, <span class="st">&quot;col2&quot;</span>, ...)</code></pre></div>
 <p>and</p>
@@ -657,9 +716,9 @@ temp <span class="op">%&gt;%</span>
 <p>(2.2.1)</p>
 </div>
 <div id="handling-dates" class="section level1">
-<h1><span class="header-section-number">9</span> Handling Dates</h1>
+<h1><span class="header-section-number">10</span> Handling Dates</h1>
 <div id="timestamps" class="section level2">
-<h2><span class="header-section-number">9.1</span> Timestamps</h2>
+<h2><span class="header-section-number">10.1</span> Timestamps</h2>
 <p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. The spark internal format of choice would be <em>utc_timestamp</em>, the timestamp in UTC time zone. The way there may be slightly circuituous:</p>
 <ol style="list-style-type: decimal">
 <li><p>Convert the character representation (say, column “date”) into <em>unix_timestamp</em> with</p>
@@ -686,7 +745,7 @@ temp <span class="op">%&gt;%</span>
 <p>(spark 2.1.2)</p>
 </div>
 <div id="formatting-dates" class="section level2">
-<h2><span class="header-section-number">9.2</span> Formatting dates</h2>
+<h2><span class="header-section-number">10.2</span> Formatting dates</h2>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -705,24 +764,6 @@ temp <span class="op">%&gt;%</span>
 ## 2 2018-05-03 06:34:11 20180503</code></pre>
 <p><strong>Warning</strong>: you must put the column in the first position in <code>withColumn</code> arithmetic expression. A literal number in the first position, such as <code>10000*year(column(&quot;date&quot;))</code> gives an error.</p>
 <p>(spark 2.2.0)</p>
-</div>
-</div>
-<div id="string-operations" class="section level1">
-<h1><span class="header-section-number">10</span> String Operations</h1>
-<div id="startswith-endswith" class="section level2">
-<h2><span class="header-section-number">10.1</span> startsWith, endsWith</h2>
-<p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
-<span class="kw">endsWith</span>(column, substring)</code></pre></div>
-<p>Example:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">x=</span><span class="kw">c</span>(<span class="st">&quot;foo&quot;</span>, <span class="st">&quot;bar&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">createDataFrame</span>()
-df <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;y&quot;</span>, <span class="kw">endsWith</span>(<span class="kw">column</span>(<span class="st">&quot;x&quot;</span>), <span class="st">&quot;oo&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##     x     y
-## 1 foo  TRUE
-## 2 bar FALSE</code></pre>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
