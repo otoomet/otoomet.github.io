@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-08-30" />
+<meta name="date" content="2018-08-31" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-08-30</em></h4>
+<h4 class="date"><em>2018-08-31</em></h4>
 
 </div>
 
@@ -254,22 +254,26 @@ div.tocify {
 <div id="introduction" class="section level1">
 <h1><span class="header-section-number">1</span> Introduction</h1>
 <p>SparkR is a very valuable approach when working with big data. Unfortunately it’s documentation is rather sparse. Here I have collected a number of solutions and explanations I have been struggling myself and hope others may find useful.</p>
+<div id="preliminaries" class="section level2">
+<h2><span class="header-section-number">1.1</span> Preliminaries</h2>
+<p>In this text I assume you are familiar with magrittr pipes <code>%&gt;%</code> and <code>%T&gt;%</code>. These two piping constructs are an excellent complement to SparkR (and to dplyr package and many other R tasks). A good source to read about pipes is Garret Grolemund and Hadley Wickham’s <a href="http://r4ds.had.co.nz/">R for data science</a> section <a href="http://r4ds.had.co.nz/pipes.html">Pipes</a>.</p>
+</div>
 </div>
 <div id="general-concepts" class="section level1">
 <h1><span class="header-section-number">2</span> General concepts</h1>
 <div id="rdd" class="section level2">
 <h2><span class="header-section-number">2.1</span> RDD</h2>
 <p>The central data structure in spark is <em>Resilient Distributed Dataset</em> (RDD). Resilient means it can be recovered using an earlier stage and the <em>RDD lineage</em> information.</p>
-<p>So RDD is not just dataset: a number in RDD is not just a number, but a number plus information where this number comes from.</p>
+<p>So RDD is not just a dataset: a number in RDD is not just a number, but a number plus information where this number comes from.</p>
 <div id="checkpointing" class="section level3">
 <h3><span class="header-section-number">2.1.1</span> Checkpointing</h3>
 <p>As one operates repeatedly on the same data, the RDD lineage may grow without limits. This happens, for instance, if you add data to an RDD in a loop, and each time also filter out certain observations. This manifests with RDD operations getting slower and slower, one may also get <code>java.lang.StackOverflowError</code>-s. A very valuable resource for seeing and debugging the RDD lineages is the web monitoring port 4040 (the default value).</p>
-<p>A way to <em>break the lineage</em> is to use <em>checkpointing</em>. Checkpointing saves the current dataframe as “just data”, without any historical information. All the following execution plans take the resulting dataframe as a blank sheet (well, blank in terms of lineage, not data content!).</p>
-<p>Checkpointing can be done like this:</p>
+<p>A way to <em>break the lineage</em> is to use <em>checkpointing</em>. Checkpointing saves the current dataframe as “just data”, without any historical information. If should be saved on a fault-tolerant file system, such as HDFS, to ensure the whole process is fault-tolerant. All the following execution plans now take the resulting dataframe as a blank sheet (well, blank in terms of lineage, not data content!). Checkpointing can be done like this:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">setCheckpointDir</span>(<span class="st">&quot;/tmp&quot;</span>)
                            <span class="co"># note: have to set checkpoint dir</span>
 df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code></pre></div>
 <p>Now <code>df2</code> is a lineage-less dataframe.</p>
+<p>However, checkpointing is not without it’s downsides. It saves data on the disk, and this may be quite slow. Second, it may take quite a bit storage as you are essentially writing all your data on disk in uncompressed format. (Have to check if <code>unpersist</code> helps to delete checkpoints).</p>
 </div>
 </div>
 </div>
@@ -352,8 +356,24 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 </div>
 <div id="data-input" class="section level1">
 <h1><span class="header-section-number">4</span> Data Input</h1>
+<div id="from-r-to-spark-and-back" class="section level2">
+<h2><span class="header-section-number">4.1</span> From R to spark and back</h2>
+<p>An R dataframe can be transformed to a spark dataframe using <code>createDataFrame</code> function, the reverse is done by <code>collect</code>. For instance:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+dfa</code></pre></div>
+<pre><code>## SparkDataFrame[a:int]</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a
+## 1 1
+## 2 2</code></pre>
+<p>However, note you cannot transform 0-row R dataframes into spark in this way</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="kw">integer</span>()) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()</code></pre></div>
+<p>will give an unhelpful error regarding to subscript out of bounds.</p>
+</div>
 <div id="how-to-read-csv-files" class="section level2">
-<h2><span class="header-section-number">4.1</span> How to read csv files</h2>
+<h2><span class="header-section-number">4.2</span> How to read csv files</h2>
 <p>CSV files are one of the most common and versatile forms of data. SparkR reads these pretty well but unfortunately, the documentation is not good enough to get started. The basic syntax is:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">loadDF</span>(fName,
        <span class="dt">source=</span><span class="st">&quot;csv&quot;</span>,
@@ -377,7 +397,7 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 <p>There is an alternative function, <code>read.df</code>, that differs from loadDF by the default arguments.</p>
 </div>
 <div id="parquet-files" class="section level2">
-<h2><span class="header-section-number">4.2</span> Parquet files</h2>
+<h2><span class="header-section-number">4.3</span> Parquet files</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">read.parquet</span>(file)</code></pre></div>
 <ul>
 <li><code>file</code>: file name, actually the name of the folder where parquet holds it’s files
@@ -387,12 +407,72 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 </ul>
 </div>
 </div>
-<div id="general-operations" class="section level1">
-<h1><span class="header-section-number">5</span> General operations</h1>
+<div id="working-with-data" class="section level1">
+<h1><span class="header-section-number">5</span> Working with data</h1>
 <div id="accessing-columns" class="section level2">
 <h2><span class="header-section-number">5.1</span> Accessing columns</h2>
 <p>One can access single columns with the <code>$</code>-operator and the <code>column</code> function. The <code>$</code>-operator works in a fairly similar manner than for ordinary data frames. Note that in case of piping where your intermediate dataframe does not have a name, you may access the columns with <code>.$</code> way like <code>.$foo</code>.</p>
 <p>Function <code>column</code> is an alternative, it takes column name as a character: <code>column(&quot;foo&quot;)</code>.</p>
+</div>
+<div id="creating-new-columns" class="section level2">
+<h2><span class="header-section-number">5.2</span> Creating new columns</h2>
+<div id="constant-columns" class="section level3">
+<h3><span class="header-section-number">5.2.1</span> Constant columns</h3>
+<p>Constant columns can be added with the <code>lit</code> function:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+foo <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;b&quot;</span>, <span class="kw">lit</span>(<span class="dv">77</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a  b
+## 1 1 77
+## 2 2 77</code></pre>
+<p>will add a constant column <em>b = 77</em> to the dataframe, <code>withColumn</code> will most likely figure out the correct type.</p>
+<p>You can add missing values in the same fashion. However, if you just do <code>withColumn(&quot;c&quot;, lit(NA))</code>, you get a column of type <em>null</em> which may cause trouble downstream (cannot save it in a parquet file, for instance). You should <em>cast</em> it into the correct type, for instance to “integer”:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;b&quot;</span>, <span class="kw">cast</span>(<span class="kw">lit</span>(<span class="ot">NA</span>), <span class="st">&quot;integer&quot;</span>)) <span class="op">%T&gt;%</span>
+<span class="st">   </span><span class="kw">printSchema</span>() <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>## root
+##  |-- a: integer (nullable = true)
+##  |-- b: integer (nullable = true)</code></pre>
+<pre><code>##   a  b
+## 1 1 NA
+## 2 2 NA</code></pre>
+<p>Indeed, as the schema indicates, <em>b</em> is now an integer.</p>
+</div>
+</div>
+<div id="renaming-columns" class="section level2">
+<h2><span class="header-section-number">5.3</span> Renaming columns</h2>
+<p>There are two built-in functions for renaming. <code>rename</code> expects a list of arguments in the form of <code>newName = existingColumn</code> (after the data frame argument). Note: this is quoted or unquoted name = column, the right hand side must not be just a column name. This is perhaps the easiest way to rename variables:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="kw">c</span>(<span class="st">&quot;Huang&quot;</span>, <span class="st">&quot;Goyal&quot;</span>)))
+data <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">rename</span>(<span class="dt">id =</span> <span class="kw">column</span>(<span class="st">&quot;a&quot;</span>), <span class="st">&quot;name&quot;</span> =<span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;b&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   id  name
+## 1  1 Huang
+## 2  2 Goyal</code></pre>
+<p><code>withColumnRenamed</code> expects two arguments (after the data frame argument): old column name and new column name. Note: these are column names, not columns, and the order is the other way around:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="kw">c</span>(<span class="st">&quot;Huang&quot;</span>, <span class="st">&quot;Goyal&quot;</span>)))
+data <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumnRenamed</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;id&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumnRenamed</span>(<span class="st">&quot;b&quot;</span>, <span class="st">&quot;name&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   id  name
+## 1  1 Huang
+## 2  2 Goyal</code></pre>
+<p>However, certain short column names do not work (2.2.1) and exit with an uninformative error message:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">rename</span>(<span class="st">&quot;x&quot;</span> =<span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;a&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>## Error in (function (classes, fdef, mtable) : unable to find an inherited method for function 'rename' for signature '&quot;Column&quot;'</code></pre>
+<p>Name “xx” works, however:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">rename</span>(<span class="st">&quot;xx&quot;</span> =<span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;a&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   xx     b
+## 1  1 Huang
+## 2  2 Goyal</code></pre>
 </div>
 </div>
 <div id="merging" class="section level1">
@@ -459,7 +539,7 @@ baz <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">coll
 ## 2 6 0</code></pre>
 <p>So the <code>baz</code> dataframe looks the same as <code>bar</code> above. However, now merge knows that the keys are just constants:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(foo, baz, <span class="dt">all.x=</span><span class="ot">TRUE</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
-<p>fails with <em>Join condition is missing or trivial</em> error. Remember: dataframe is not just data but also the lineage information!</p>
+<p>fails with <em>Join condition is missing or trivial</em> error (2.3.1). Remember: dataframe is not just data but also the lineage information!</p>
 </div>
 </div>
 <div id="merging-and-lazy-evaluation" class="section level2">
@@ -550,40 +630,8 @@ temp <span class="op">%&gt;%</span>
 <p>This is simple, and seems to work, at least locally. Unfortunately there is no guarantee that <code>groupBy</code> preserves the order (see <a href="https://issues.apache.org/jira/browse/SPARK-16207">SPARK-16207</a>).</p>
 </div>
 </div>
-<div id="how-to-rename-columns" class="section level1">
-<h1><span class="header-section-number">8</span> How to Rename Columns</h1>
-<p>There are two built-in functions for renaming. <code>rename</code> expects a list of arguments in the form of <code>newName = existingColumn</code> (after the data frame argument). Note: this is quoted or unquoted name = column, the right hand side must not be just a column name. This is perhaps the easiest way to rename variables:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="kw">c</span>(<span class="st">&quot;Huang&quot;</span>, <span class="st">&quot;Goyal&quot;</span>)))
-data <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">rename</span>(<span class="dt">id =</span> <span class="kw">column</span>(<span class="st">&quot;a&quot;</span>), <span class="st">&quot;name&quot;</span> =<span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;b&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##   id  name
-## 1  1 Huang
-## 2  2 Goyal</code></pre>
-<p><code>withColumnRenamed</code> expects two arguments (after the data frame argument): old column name and new column name. Note: these are column names, not columns, and the order is the other way around:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="kw">c</span>(<span class="st">&quot;Huang&quot;</span>, <span class="st">&quot;Goyal&quot;</span>)))
-data <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumnRenamed</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;id&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumnRenamed</span>(<span class="st">&quot;b&quot;</span>, <span class="st">&quot;name&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##   id  name
-## 1  1 Huang
-## 2  2 Goyal</code></pre>
-<p>However, certain short column names do not work (2.2.1) and exit with an uninformative error message:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">rename</span>(<span class="st">&quot;x&quot;</span> =<span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;a&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>## Error in (function (classes, fdef, mtable) : unable to find an inherited method for function 'rename' for signature '&quot;Column&quot;'</code></pre>
-<p>Name “xx” works, however:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">rename</span>(<span class="st">&quot;xx&quot;</span> =<span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;a&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##   xx     b
-## 1  1 Huang
-## 2  2 Goyal</code></pre>
-</div>
 <div id="arrange" class="section level1">
-<h1><span class="header-section-number">9</span> arrange</h1>
+<h1><span class="header-section-number">8</span> arrange</h1>
 <p>Spark dataframes can be ordered by <code>arrange</code> function. It orders the data by “natural order”, i.e. alphabetically for character columns and in numeric order for numerics. The syntax is similar to that of <em>dplyr</em>: <code>arrange(col, col, ...)</code>. However, there are two separate functions:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">arrange</span>(<span class="st">&quot;col1&quot;</span>, <span class="st">&quot;col2&quot;</span>, ...)</code></pre></div>
 <p>and</p>
@@ -609,9 +657,9 @@ data <span class="op">%&gt;%</span>
 <p>(2.2.1)</p>
 </div>
 <div id="handling-dates" class="section level1">
-<h1><span class="header-section-number">10</span> Handling Dates</h1>
+<h1><span class="header-section-number">9</span> Handling Dates</h1>
 <div id="timestamps" class="section level2">
-<h2><span class="header-section-number">10.1</span> Timestamps</h2>
+<h2><span class="header-section-number">9.1</span> Timestamps</h2>
 <p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. The spark internal format of choice would be <em>utc_timestamp</em>, the timestamp in UTC time zone. The way there may be slightly circuituous:</p>
 <ol style="list-style-type: decimal">
 <li><p>Convert the character representation (say, column “date”) into <em>unix_timestamp</em> with</p>
@@ -638,7 +686,7 @@ data <span class="op">%&gt;%</span>
 <p>(spark 2.1.2)</p>
 </div>
 <div id="formatting-dates" class="section level2">
-<h2><span class="header-section-number">10.2</span> Formatting dates</h2>
+<h2><span class="header-section-number">9.2</span> Formatting dates</h2>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -660,9 +708,9 @@ data <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="string-operations" class="section level1">
-<h1><span class="header-section-number">11</span> String Operations</h1>
+<h1><span class="header-section-number">10</span> String Operations</h1>
 <div id="startswith-endswith" class="section level2">
-<h2><span class="header-section-number">11.1</span> startsWith, endsWith</h2>
+<h2><span class="header-section-number">10.1</span> startsWith, endsWith</h2>
 <p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
 <span class="kw">endsWith</span>(column, substring)</code></pre></div>
@@ -678,19 +726,19 @@ df <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
-<h1><span class="header-section-number">12</span> other notes (draft)</h1>
+<h1><span class="header-section-number">11</span> other notes (draft)</h1>
 <div id="web-monitoring-ports" class="section level2">
-<h2><span class="header-section-number">12.1</span> Web Monitoring Ports</h2>
+<h2><span class="header-section-number">11.1</span> Web Monitoring Ports</h2>
 <p>if you start spark locally (–master local[n]), then the 8080 and 8081 ports are not there, only 4040.</p>
 </div>
 <div id="merging-by-a-large-number-of-keys" class="section level2">
-<h2><span class="header-section-number">12.2</span> Merging by a large number of keys</h2>
+<h2><span class="header-section-number">11.2</span> Merging by a large number of keys</h2>
 <p>during merges (and possibly sorts) you may end up with being out of memory with error message like</p>
 <p>java.lang.IllegalArgumentException: Cannot allocate a page with more than 17179869176 bytes</p>
 <p>This is claimed to be related to grouping by key. Spark tries to allocate equal amount of memory for each key, and if the distribution is skewed, it attempts to allocate too much.</p>
 </div>
 <div id="finding-na-s" class="section level2">
-<h2><span class="header-section-number">12.3</span> finding NA-s</h2>
+<h2><span class="header-section-number">11.3</span> finding NA-s</h2>
 <p>I cannot understand how is.nan works. Use instead</p>
 <p>isNull(col)</p>
 <p>or</p>
@@ -698,28 +746,24 @@ df <span class="op">%&gt;%</span>
 <p>they can be used for filtering and they mark NA-s as TRUE</p>
 </div>
 <div id="user-defined-functions" class="section level2">
-<h2><span class="header-section-number">12.4</span> User-Defined Functions</h2>
+<h2><span class="header-section-number">11.4</span> User-Defined Functions</h2>
 <p>when doing UDF-s and return data.frame, you may get “Unsupported type for serialization” error. This may be related to the fact that returned data.frame converts strings to factors and sparkR cannot serialize factors. Use stringsAsFactors=FALSE</p>
 </div>
 <div id="parquet-file-for-temporary-data" class="section level2">
-<h2><span class="header-section-number">12.5</span> Parquet file for temporary data</h2>
+<h2><span class="header-section-number">11.5</span> Parquet file for temporary data</h2>
 <p>you cannot easily overwrite parquet file with new data. The old cache remains in memory and it causes errors.</p>
 </div>
-<div id="creating-empty-spark-dataframe" class="section level2">
-<h2><span class="header-section-number">12.6</span> creating empty spark dataframe</h2>
-<p>empty R data.frame %&gt;% createDataFrame gives out-of-bounds errors</p>
-</div>
 <div id="reading-data" class="section level2">
-<h2><span class="header-section-number">12.7</span> Reading Data</h2>
+<h2><span class="header-section-number">11.6</span> Reading Data</h2>
 <p>read.parquet(): expects a list of files as the first argument read.df() expects a path where to read all the files as the first argument</p>
 <p>(spark 2.2)</p>
 </div>
 <div id="pivot" class="section level2">
-<h2><span class="header-section-number">12.8</span> pivot</h2>
+<h2><span class="header-section-number">11.7</span> pivot</h2>
 <p>don’t pivot on groupBy columns</p>
 </div>
 <div id="dapply" class="section level2">
-<h2><span class="header-section-number">12.9</span> dapply</h2>
+<h2><span class="header-section-number">11.8</span> dapply</h2>
 <p>the chunks fed to dapply are roungly of the size #obs/#partitions. nParallel dapply processes are run in parallel.</p>
 <p>If you get error message <code>error in parallel:::mcfork unable to create a pipe</code> then you may have run out of processes. Spark 2.1.2 and R 3.5.0 did not play nicely with dapply leaving zombies, until you run out of the available processes. In this case fewer partitions may help. Issue seems to be gone when switching to spark 2.3.1.</p>
 <p>One runs a separate dapply process for each partition? At least the number of dapply invocations seems to equal the number of partitions.</p>
