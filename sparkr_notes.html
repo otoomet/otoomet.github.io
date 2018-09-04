@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-08-31" />
+<meta name="date" content="2018-09-04" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-08-31</em></h4>
+<h4 class="date"><em>2018-09-04</em></h4>
 
 </div>
 
@@ -474,10 +474,25 @@ data <span class="op">%&gt;%</span>
 ## 1  1 Huang
 ## 2  2 Goyal</code></pre>
 </div>
+<div id="converting-columns" class="section level2">
+<h2><span class="header-section-number">5.4</span> Converting columns</h2>
+<div id="numbers-to-strings" class="section level3">
+<h3><span class="header-section-number">5.4.1</span> Numbers to strings</h3>
+<p>A tailor-made way to make strings out of numbers is <code>format_string(format, column)</code>. It appears to use standard C formatting specifications:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;c&quot;</span>, <span class="kw">format_string</span>(<span class="st">&quot;%10d&quot;</span>, <span class="kw">column</span>(<span class="st">&quot;a&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   a     b          c
+## 1 1 Huang          1
+## 2 2 Goyal          2</code></pre>
+<p>Note the space before the numbers in string format.</p>
+<p>When feeding a string column for <code>%d</code> format, spark fails with <code>IllegalFormatConversionException</code>: <code>d != org.apache.spark.unsafe.types.UTF8String</code>.</p>
+</div>
+</div>
 <div id="working-with-strings" class="section level2">
-<h2><span class="header-section-number">5.4</span> Working with strings</h2>
+<h2><span class="header-section-number">5.5</span> Working with strings</h2>
 <div id="substrings-with-substr" class="section level3">
-<h3><span class="header-section-number">5.4.1</span> substrings with <code>substr</code></h3>
+<h3><span class="header-section-number">5.5.1</span> substrings with <code>substr</code></h3>
 <p>Substrings can be created with <code>substr</code>. It’s syntax is simple:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">substr</span>(x, start, end)</code></pre></div>
 <ul>
@@ -496,7 +511,7 @@ df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">withC
 <p><strong>Warning</strong>: in SparkR &lt; 2.3.0, start position was to be given <em>one past</em> the first character to be extracted. So in the example above, one has to use <code>substr(column(&quot;names&quot;), 4, 20)</code></p>
 </div>
 <div id="startswith-endswith" class="section level3">
-<h3><span class="header-section-number">5.4.2</span> startsWith, endsWith</h3>
+<h3><span class="header-section-number">5.5.2</span> startsWith, endsWith</h3>
 <p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
 <span class="kw">endsWith</span>(column, substring)</code></pre></div>
