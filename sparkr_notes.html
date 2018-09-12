@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-09-05" />
+<meta name="date" content="2018-09-12" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-09-05</em></h4>
+<h4 class="date"><em>2018-09-12</em></h4>
 
 </div>
 
@@ -436,8 +436,30 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 <p>One can access single columns with the <code>$</code>-operator and the <code>column</code> function. The <code>$</code>-operator works in a fairly similar manner than for ordinary data frames. Note that in case of piping where your intermediate dataframe does not have a name, you may access the columns with <code>.$</code> way like <code>.$foo</code>.</p>
 <p>Function <code>column</code> is an alternative, it takes column name as a character: <code>column(&quot;foo&quot;)</code>.</p>
 </div>
-<div id="creating-new-columns" class="section level2">
-<h2><span class="header-section-number">6.2</span> Creating new columns</h2>
+<div id="creating-new-columns-column-expressions" class="section level2">
+<h2><span class="header-section-number">6.2</span> Creating new columns: column expressions</h2>
+<p>There are two functions for computing on columns: <code>withColumn</code> and <code>mutate</code>. The arguments of the former are:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">withColumn</span>(dataframe, columnName, expression)</code></pre></div>
+<p>where <code>columnName</code> is a character column name (not a <code>Column</code> object), and expression is a column expression: something you can create from existing columns and constants. It may include mathematical and string operations and other similar functions. Take the example dataframe</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   family    name  yob
+## 1     Hu  Jintao 1942
+## 2     Xi Jinping 1953</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;age2018&quot;</span>, <span class="kw">lit</span>(<span class="dv">2018</span>) <span class="op">-</span><span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   family    name  yob age2018
+## 1     Hu  Jintao 1942      76
+## 2     Xi Jinping 1953      65</code></pre>
+<p>The column expression, <code>lit(2018) - column(&quot;yob&quot;)</code>, computes the age in 2018. As <code>column(&quot;yob&quot;)</code> is not a number (but a “Column” object), one cannot simply do <code>2018 - column(&quot;yob&quot;)</code>. Arithmetic with numbers and columns is limited (there is no “-” function with signature “numeric”, “Column”). <code>lit(2018)</code> creates a new constant column, and now we perform arithmetic of two columns instead of a numeric and a column. However, arithmetic operators for columns can handle “numeric” further down in the signature:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;age2018&quot;</span>, (<span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>) <span class="op">-</span><span class="st"> </span><span class="dv">2018</span>)<span class="op">*</span>(<span class="op">-</span><span class="dv">1</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   family    name  yob age2018
+## 1     Hu  Jintao 1942      76
+## 2     Xi Jinping 1953      65</code></pre>
+<p>Now R selects “-” with signature “Column” and “numeric”, and this works well.</p>
 <div id="constant-columns" class="section level3">
 <h3><span class="header-section-number">6.2.1</span> Constant columns</h3>
 <p>Constant columns can be added with the <code>lit</code> function:</p>
@@ -702,8 +724,8 @@ temp <span class="op">%&gt;%</span>
 <p>as grouped data cannot be arranged in spark.</p>
 <div id="window-functions" class="section level2">
 <h2><span class="header-section-number">9.1</span> Window Functions</h2>
-<p>A correct solution seems to be to use window functions. Windows in SQL parlance are blocks of rows where one can do certain operations. Windows can be defined in a different ways, here we are interested partitioning data by keys into windows. This can be done as <code>windowPartitionBy(&quot;month&quot;)</code>. This tells spark that data must be “partitioned” by month (I guess the ‘partition’ here not the same as RDD partition), and we can operate separately on these partitions.</p>
-<p>Now we want to order the partitions by temperature. This can be achieved by <code>ws &lt;- orderBy(windowPartitionBy(&quot;month&quot;), &quot;temp&quot;)</code>. Note we first define window partition, and thereafter it’s ordering. These operations form our <em>window specification</em> <code>ws</code>. This is just specification, we haven’t touched the data yet.</p>
+<p>A correct solution seems to be to use window functions. Windows in SQL parlance are blocks of rows where one can do certain operations. Windows can be defined in a different ways, here we are interested partitioning data by keys into windows. This can be done as <code>windowPartitionBy(&quot;month&quot;)</code>. This tells spark that data must be “partitioned” by month (I guess the ‘partition’ here is not the same as RDD partition), and we can operate separately on these partitions.</p>
+<p>Now we want to order the partitions by temperature. This can be achieved by <code>ws &lt;- orderBy(windowPartitionBy(&quot;month&quot;), &quot;temp&quot;)</code>. Note we first define the window partition, and thereafter it’s ordering. These operations form our <em>window specification</em> <code>ws</code>. This is just specification, we haven’t touched the data yet.</p>
 <p>When done with window specification, one can use window functions. These can be invoked by <code>over(x, window)</code> where <code>x</code> is a column, mostly likely computed via window functions, and <code>window</code> is the window spec we defined above. To solve the task above, we can add the row number (i.e. temperature rank) for each day in month. So we can do:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ws &lt;-<span class="st"> </span><span class="kw">orderBy</span>(<span class="kw">windowPartitionBy</span>(<span class="st">&quot;month&quot;</span>), <span class="st">&quot;temp&quot;</span>)
 temp <span class="op">%&gt;%</span>
