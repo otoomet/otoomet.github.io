@@ -438,9 +438,11 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 </div>
 <div id="creating-new-columns-column-expressions" class="section level2">
 <h2><span class="header-section-number">6.2</span> Creating new columns: column expressions</h2>
-<p>There are two functions for computing on columns: <code>withColumn</code> and <code>mutate</code>. The arguments of the former are:</p>
+<p>There are three functions for computing on columns: <code>withColumn</code>, <code>mutate</code> and <code>transform</code>. All of these can either create new, or overwrite existing columns.</p>
+<p>The arguments for <code>withColumn</code> are:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">withColumn</span>(dataframe, columnName, expression)</code></pre></div>
-<p>where <code>columnName</code> is a character column name (not a <code>Column</code> object), and expression is a column expression: something you can create from existing columns and constants. It may include mathematical and string operations and other similar functions. Take the example dataframe</p>
+<p>where <code>columnName</code> is a character column name (not a <code>Column</code> object), and expression is a column expression: something you can create from existing columns and constants using functions and arithmetic operators.<br />
+It may include mathematical and string operations and other column-oriented functions. Take the example dataframe</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
 <pre><code>##   family    name  yob
@@ -460,6 +462,17 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 ## 1     Hu  Jintao 1942      76
 ## 2     Xi Jinping 1953      65</code></pre>
 <p>Now R selects “-” with signature “Column” and “numeric”, and this works well.</p>
+<p><code>mutate</code> offers largely overlapping functionality, but it can take more than one computation at a time, and it’s expressions are in the form <code>name = expression</code>. We can achieve the above, and more, in the following example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">age2018 =</span> <span class="kw">lit</span>(<span class="dv">2018</span>) <span class="op">-</span><span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>),
+          <span class="dt">age2000 =</span> <span class="kw">lit</span>(<span class="dv">2000</span>) <span class="op">-</span><span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>)
+         ) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   family    name  yob age2018 age2000
+## 1     Hu  Jintao 1942      76      58
+## 2     Xi Jinping 1953      65      47</code></pre>
+<p>Note that <code>name</code> must be unquoted. We need two <code>withColumn</code> commands to achieve the same results.</p>
+<p>Finally, <code>transform</code> seems to be pretty much an alias for <code>mutate</code>.</p>
 <div id="constant-columns" class="section level3">
 <h3><span class="header-section-number">6.2.1</span> Constant columns</h3>
 <p>Constant columns can be added with the <code>lit</code> function:</p>
