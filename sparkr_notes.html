@@ -864,6 +864,29 @@ dateDF2 <span class="op">%&gt;%</span>
 </div>
 <div id="date-specific-functions" class="section level2">
 <h2><span class="header-section-number">11.3</span> Date-specific functions</h2>
+<div id="converting-data" class="section level3">
+<h3><span class="header-section-number">11.3.1</span> Converting data</h3>
+<div id="date-as-utc_timestamp-into-a-given-time-zone-from_utc_timestamp" class="section level4">
+<h4><span class="header-section-number">11.3.1.1</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
+<p><code>from_utc_timestamp(y, x)</code>: converts <em>y</em> into timestamp in time zone <em>x</em></p>
+<ul>
+<li><code>y</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
+<li><code>x</code>: string, time zone. A time zone the system understands.</li>
+</ul>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;shanghaitime&quot;</span>, <span class="kw">from_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Shanghai&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##                  date        shanghaitime
+## 1 1949-09-21 14:14:33 1949-09-21 22:14:33
+## 2 2018-05-03 06:34:11 2018-05-03 14:34:11</code></pre>
+<p>Indeed, Shanghai time is 8 hours ahead of UTC.</p>
+</div>
+</div>
+<div id="extracting-datetime-information" class="section level3">
+<h3><span class="header-section-number">11.3.2</span> Extracting date/time information</h3>
+<div id="day-of-week-dayofweek" class="section level4">
+<h4><span class="header-section-number">11.3.2.1</span> Day of week <code>dayofweek</code></h4>
 <p><code>dayofweek(x)</code>: day of week. Sunday=1, Saturday=7. Introduced in spark 2.3.0.</p>
 <ul>
 <li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -875,6 +898,22 @@ dateDF2 <span class="op">%&gt;%</span>
 <pre><code>##                  date dayOfWeek
 ## 1 2014-03-23 14:14:33         1
 ## 2 2018-05-03 06:34:11         5</code></pre>
+</div>
+<div id="hour-hour" class="section level4">
+<h4><span class="header-section-number">11.3.2.2</span> Hour <code>hour</code></h4>
+<p><code>hour(x)</code>: hour, in 24h format.</p>
+<ul>
+<li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
+</ul>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;hour&quot;</span>, <span class="kw">hour</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##                  date hour
+## 1 1949-09-21 14:14:33   14
+## 2 2018-05-03 06:34:11    6</code></pre>
+</div>
+</div>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
