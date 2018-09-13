@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-09-12" />
+<meta name="date" content="2018-09-13" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-09-12</em></h4>
+<h4 class="date"><em>2018-09-13</em></h4>
 
 </div>
 
@@ -438,9 +438,11 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 </div>
 <div id="creating-new-columns-column-expressions" class="section level2">
 <h2><span class="header-section-number">6.2</span> Creating new columns: column expressions</h2>
-<p>There are two functions for computing on columns: <code>withColumn</code> and <code>mutate</code>. The arguments of the former are:</p>
+<p>There are three functions for computing on columns: <code>withColumn</code>, <code>mutate</code> and <code>transform</code>. All of these can either create new, or overwrite existing columns.</p>
+<p>The arguments for <code>withColumn</code> are:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">withColumn</span>(dataframe, columnName, expression)</code></pre></div>
-<p>where <code>columnName</code> is a character column name (not a <code>Column</code> object), and expression is a column expression: something you can create from existing columns and constants. It may include mathematical and string operations and other similar functions. Take the example dataframe</p>
+<p>where <code>columnName</code> is a character column name (not a <code>Column</code> object), and expression is a column expression: something you can create from existing columns and constants using functions and arithmetic operators.<br />
+It may include mathematical and string operations and other column-oriented functions. Take the example dataframe</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
 <pre><code>##   family    name  yob
@@ -460,6 +462,17 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 ## 1     Hu  Jintao 1942      76
 ## 2     Xi Jinping 1953      65</code></pre>
 <p>Now R selects “-” with signature “Column” and “numeric”, and this works well.</p>
+<p><code>mutate</code> offers largely overlapping functionality, but it can take more than one computation at a time, and it’s expressions are in the form <code>name = expression</code>. We can achieve the above, and more, in the following example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">age2018 =</span> <span class="kw">lit</span>(<span class="dv">2018</span>) <span class="op">-</span><span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>),
+          <span class="dt">age2000 =</span> <span class="kw">lit</span>(<span class="dv">2000</span>) <span class="op">-</span><span class="st"> </span><span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>)
+         ) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   family    name  yob age2018 age2000
+## 1     Hu  Jintao 1942      76      58
+## 2     Xi Jinping 1953      65      47</code></pre>
+<p>Note that <code>name</code> must be unquoted. We need two <code>withColumn</code> commands to achieve equivalent results.</p>
+<p>Finally, <code>transform</code> seems to be pretty much an alias for <code>mutate</code>.</p>
 <div id="constant-columns" class="section level3">
 <h3><span class="header-section-number">6.2.1</span> Constant columns</h3>
 <p>Constant columns can be added with the <code>lit</code> function:</p>
@@ -804,9 +817,20 @@ temp <span class="op">%&gt;%</span>
                        <span class="co"># use AFT time zone</span></code></pre></div>
 <p><strong>Warning</strong>: if the time zone acronym is unknown, it will be silently ignored.</p></li>
 </ol>
-<p>An example script that performs all these tasks: <code>{r dateConvertExample1 } data &lt;- createDataFrame(data.frame(date=c(&quot;3/22 2014 18:44:33&quot;, &quot;5/3 2018 11:04:11&quot;))) data2 &lt;- data %&gt;%    withColumn(&quot;date&quot;, unix_timestamp(column(&quot;date&quot;), &quot;MM/dd yyyy HH:mm:ss&quot;)) %&gt;%    withColumn(&quot;date&quot;, cast(column(&quot;date&quot;), &quot;timestamp&quot;)) %&gt;%    withColumn(&quot;date&quot;, to_utc_timestamp(column(&quot;date&quot;), &quot;Asia/Kabul&quot;)) data2 %&gt;%    collect()</code> Indeed, UTC time is less than Kabul time by 4 hours 30 mins.</p>
+<p>An example script that performs all these tasks:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">date=</span><span class="kw">c</span>(<span class="st">&quot;9/21 1949 18:44:33&quot;</span>, <span class="st">&quot;5/3 2018 11:04:11&quot;</span>)))
+dateDF2 &lt;-<span class="st"> </span>dateDF <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">cast</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;timestamp&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>))
+dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##                  date
+## 1 1949-09-21 14:14:33
+## 2 2018-05-03 06:34:11</code></pre>
+<p>Indeed, UTC time is less than Kabul time by 4 hours 30 mins.</p>
 <p>The above can also be achieved in a more compact manner as:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">                      </span><span class="kw">cast</span>(<span class="st">&quot;timestamp&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">                      </span><span class="kw">to_utc_timestamp</span>(<span class="st">&quot;Asia/Kabul&quot;</span>)
@@ -820,14 +844,14 @@ temp <span class="op">%&gt;%</span>
 <div id="formatting-dates" class="section level2">
 <h2><span class="header-section-number">11.2</span> Formatting dates</h2>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data2 <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
 <pre><code>##                  date    date2
 ## 1 2014-03-22 14:14:33 20140322
 ## 2 2018-05-03 06:34:11 20180503</code></pre>
 <p>Alternatively, one can achieve a similar result with extractor functions <code>year</code>, <code>month</code>, <code>dayofmonth</code>, <code>hour</code>, <code>minute</code>, <code>second</code>. For instance:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data2 <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">year</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>))<span class="op">*</span><span class="dv">10000</span> <span class="op">+</span>
 <span class="st">                       </span><span class="kw">month</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>))<span class="op">*</span><span class="dv">100</span> <span class="op">+</span>
 <span class="st">                       </span><span class="kw">dayofmonth</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>))) <span class="op">%&gt;%</span>
@@ -837,6 +861,20 @@ temp <span class="op">%&gt;%</span>
 ## 2 2018-05-03 06:34:11 20180503</code></pre>
 <p><strong>Warning</strong>: you must put the column in the first position in <code>withColumn</code> arithmetic expression. A literal number in the first position, such as <code>10000*year(column(&quot;date&quot;))</code> gives an error.</p>
 <p>(spark 2.2.0)</p>
+</div>
+<div id="date-specific-functions" class="section level2">
+<h2><span class="header-section-number">11.3</span> Date-specific functions</h2>
+<p><code>dayofweek(x)</code>: day of week. Sunday=1, Saturday=7. Introduced in spark 2.3.0.</p>
+<ul>
+<li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
+</ul>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;dayOfWeek&quot;</span>, <span class="kw">dayofweek</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##                  date dayOfWeek
+## 1 2014-03-23 14:14:33         1
+## 2 2018-05-03 06:34:11         5</code></pre>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
