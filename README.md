@@ -18,3 +18,6 @@ methods to look data up in 2D tables in R, and benchmark it with python/pandas.
 
 [SparkR Notes](sparkr_notes.html): notes and solutions to certain
 issues I have had with SparkR.
+
+[Bad photocopy effect with gimp](photocopy-effect-with-gimp.html): how
+to create text that looks like a low-resolution photocopy.
