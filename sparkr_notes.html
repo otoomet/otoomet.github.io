@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-09-13" />
+<meta name="date" content="2018-09-19" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-09-13</em></h4>
+<h4 class="date"><em>2018-09-19</em></h4>
 
 </div>
 
@@ -256,7 +256,20 @@ div.tocify {
 <p>SparkR is a very valuable approach when working with big data. Unfortunately it’s documentation is rather sparse. Here I have collected a number of solutions and explanations I have been struggling myself and hope others may find useful.</p>
 <div id="preliminaries" class="section level2">
 <h2><span class="header-section-number">1.1</span> Preliminaries</h2>
-<p>In this text I assume you are familiar with magrittr pipes <code>%&gt;%</code> and <code>%T&gt;%</code>. These two piping constructs are an excellent complement to SparkR (and to dplyr package and many other R tasks). A good source to read about pipes is Garret Grolemund and Hadley Wickham’s <a href="http://r4ds.had.co.nz/">R for data science</a> section <a href="http://r4ds.had.co.nz/pipes.html">Pipes</a>.</p>
+<p>In this text I assume you are familiar with magrittr pipes <code>%&gt;%</code> and <code>%T&gt;%</code>. These two piping constructs are an excellent complement to SparkR (and to <em>dplyr</em> package and many other R tasks). A good source to read about pipes is Garret Grolemund and Hadley Wickham’s <a href="http://r4ds.had.co.nz/">R for data science</a> section <a href="http://r4ds.had.co.nz/pipes.html">Pipes</a>.</p>
+</div>
+<div id="sparkr-and-dplyr" class="section level2">
+<h2><span class="header-section-number">1.2</span> SparkR and <em>dplyr</em></h2>
+<p>SparkR takes a similar approach as <em>dplyr</em> in transforming data, so I strongly recommend you to familiarize yourself with <em>dplyr</em> before you start with spark. An excellent source for this is Garret Grolemund and Hadley Wickham’s <a href="http://r4ds.had.co.nz/">R for data science</a>, section <a href="http://r4ds.had.co.nz/transform.html">Data Transformations</a>. The similarity if further stressed by a number of functions (“verbs” in Grolemund and Wickham’s parlance) having exactly the same name and similar syntax. True, in case of SparkR, there are often two versions, one with <em>dplyr</em>-similar syntax, and one with it’s own distinct syntax.</p>
+<p>The fact that the syntax is the same can cause issues, however. For instance, selection of certain variables can be done with <code>select</code>:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">select</span>(data.frame, col, ...) <span class="co"># dplyr</span>
+<span class="kw">select</span>(SparkDataFrame, col, ...) <span class="co"># SparkR</span></code></pre></div>
+<p>There are two potential issues here:</p>
+<ol style="list-style-type: decimal">
+<li>The syntax is not exactly the same: where <em>dplyr</em> expects a list of unquoted variable names, <em>SparkR</em> expects a list of <em>quoted</em> names (there are other options too, see <a href="#selecting-variables">Selecting variables</a>).</li>
+<li>Apparently, the generic <code>select</code>, initiated by <em>dplyr</em>, is unable to invoke the <code>SparkDataFrame</code> method. Instead you see an obscure error like <em>Error in UseMethod(“select_”) : no applicable method for ‘select_’ applied to an object of class “SparkDataFrame”</em>. If you want to use both <em>dplyr</em> and <em>SparkR</em>, load <em>dplyr</em> before you load <em>SparkR</em>.</li>
+</ol>
+<p>Besides select, the common functions include <code>mutate</code> and <code>rename</code>.</p>
 </div>
 </div>
 <div id="general-concepts" class="section level1">
