@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-09-19" />
+<meta name="date" content="2018-10-16" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-09-19</em></h4>
+<h4 class="date"><em>2018-10-16</em></h4>
 
 </div>
 
@@ -415,6 +415,7 @@ dfa</code></pre></div>
 <ul>
 <li><code>file</code>: file name, actually the name of the folder where parquet holds it’s files
 <ul>
+<li><code>file</code> accepts certain shell patterns: <code>*</code>, <code>?</code>, and brace expansion. However, only a single set of brace expansion is allowed, and only with commas, not <code>..</code> ranges (linux, 2.3.1). Brace expansion can be combined with patters, so a name like <code>/data/{home,work}/file*</code> is valid.</li>
 <li>If you want to read all parquet file (or rather folders) in a directory, you have to specify <code>file</code> as <code>path/to/directory/*</code>. If you leave out the trailing wildcard <code>*</code>, you get an error <em>Unable to infer schema for Parquet</em> (2.3.1).</li>
 </ul></li>
 </ul>
@@ -546,8 +547,26 @@ data <span class="op">%&gt;%</span>
 </div>
 <div id="converting-columns" class="section level2">
 <h2><span class="header-section-number">6.4</span> Converting columns</h2>
+<div id="casting-with-cast" class="section level3">
+<h3><span class="header-section-number">6.4.1</span> Casting with <code>cast</code></h3>
+<p><code>cast(x, dataType)</code> is the general way of converting column <code>x</code> to a new data type. <code>dataType</code> must be one of the <a href="https://spark.apache.org/docs/latest/sparkr.html#data-type-mapping-between-r-and-spark">spark datatypes</a>, not R data type. In particular</p>
+<table>
+<thead>
+<tr class="header">
+<th>R data type</th>
+<th>spark data type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>numeric</td>
+<td>double</td>
+</tr>
+</tbody>
+</table>
+</div>
 <div id="numbers-to-strings" class="section level3">
-<h3><span class="header-section-number">6.4.1</span> Numbers to strings</h3>
+<h3><span class="header-section-number">6.4.2</span> Numbers to strings</h3>
 <p>A tailor-made way to make strings out of numbers is <code>format_string(format, column)</code>. It appears to use standard C formatting specifications:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;c&quot;</span>, <span class="kw">format_string</span>(<span class="st">&quot;%10d&quot;</span>, <span class="kw">column</span>(<span class="st">&quot;a&quot;</span>))) <span class="op">%&gt;%</span>
@@ -557,43 +576,6 @@ data <span class="op">%&gt;%</span>
 ## 2 2 Goyal          2</code></pre>
 <p>Note the space before the numbers in string format.</p>
 <p>When feeding a string column for <code>%d</code> format, spark fails with <code>IllegalFormatConversionException</code>: <code>d != org.apache.spark.unsafe.types.UTF8String</code>.</p>
-</div>
-</div>
-<div id="working-with-strings" class="section level2">
-<h2><span class="header-section-number">6.5</span> Working with strings</h2>
-<div id="substrings-with-substr" class="section level3">
-<h3><span class="header-section-number">6.5.1</span> substrings with <code>substr</code></h3>
-<p>Substrings can be created with <code>substr</code>. It’s syntax is simple:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">substr</span>(x, start, end)</code></pre></div>
-<ul>
-<li><code>x</code> is a column</li>
-<li><code>start</code>, <code>end</code> are the (1-based) start and end positions in the string. <code>start</code> and <code>end</code> must be specified, you cannot leave one out to take everything. <code>Inf</code> is not allowed either.</li>
-</ul>
-<p>Example:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">names=</span><span class="kw">c</span>(<span class="st">&quot;Barnier&quot;</span>, <span class="st">&quot;Beto&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">createDataFrame</span>()
-df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">substr</span>(<span class="kw">column</span>(<span class="st">&quot;names&quot;</span>), <span class="dv">3</span>, <span class="dv">20</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##     names      x
-## 1 Barnier arnier
-## 2    Beto    eto</code></pre>
-<p>This extracts characters 3 to 30 (i.e. from 3 till end) from these names.</p>
-<p><strong>Warning</strong>: in SparkR &lt; 2.3.0, start position was to be given <em>one past</em> the first character to be extracted. So in the example above, one has to use <code>substr(column(&quot;names&quot;), 4, 20)</code></p>
-</div>
-<div id="startswith-endswith" class="section level3">
-<h3><span class="header-section-number">6.5.2</span> startsWith, endsWith</h3>
-<p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
-<span class="kw">endsWith</span>(column, substring)</code></pre></div>
-<p>Example:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">x=</span><span class="kw">c</span>(<span class="st">&quot;foo&quot;</span>, <span class="st">&quot;bar&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">createDataFrame</span>()
-df <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;y&quot;</span>, <span class="kw">endsWith</span>(<span class="kw">column</span>(<span class="st">&quot;x&quot;</span>), <span class="st">&quot;oo&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##     x     y
-## 1 foo  TRUE
-## 2 bar FALSE</code></pre>
 </div>
 </div>
 </div>
@@ -611,12 +593,19 @@ df <span class="op">%&gt;%</span>
 ## 3 NA</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;b&quot;</span>, <span class="kw">cast</span>(<span class="kw">isNotNull</span>(<span class="kw">column</span>(<span class="st">&quot;a&quot;</span>)), <span class="st">&quot;integer&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">agg</span>(<span class="dt">n =</span> <span class="kw">sum</span>(<span class="kw">column</span>(<span class="st">&quot;b&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">agg</span>(<span class="dt">n =</span> <span class="kw">sum</span>(<span class="kw">column</span>(<span class="st">&quot;b&quot;</span>)),
+       <span class="dt">mean =</span> <span class="kw">avg</span>(<span class="kw">column</span>(<span class="st">&quot;a&quot;</span>))) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##   n
-## 1 2</code></pre>
+<pre><code>##   n mean
+## 1 2  2.5</code></pre>
 <p>This will result in a dataframe that contain one column, <em>n</em>, value of which is the desired value. Here aggregation is determined by the <code>sum</code> function, an <code>agg</code>-s helper function, that takes a numeric column (this is why we have to cast the logical column to an integer).</p>
 <p>Agg is very much similar to dplyr’s <code>summarize</code> function: it aggregates data, but one must supply the aggregation rule.</p>
+<p>There is a long list of <code>agg</code>-s aggregation functions (<code>x</code> is a column):</p>
+<ul>
+<li><code>avg(x)</code>: average value. Missings are ignored.</li>
+<li><code>count(x)</code>: count number of objects (alias <code>n</code>)</li>
+<li><code>n(x)</code>: count number of objects (alias <code>count</code>)</li>
+</ul>
 </div>
 </div>
 <div id="merging" class="section level1">
@@ -814,27 +803,89 @@ temp <span class="op">%&gt;%</span>
 <p>One cannot mix the two approaches: <code>arrange(&quot;x&quot;, column(&quot;y&quot;))</code> will not work</p>
 <p>(2.2.1)</p>
 </div>
+<div id="working-with-strings" class="section level1">
+<h1><span class="header-section-number">11</span> Working with strings</h1>
+<p>The following examples use a tiny dataframe of names:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">name=</span><span class="kw">c</span>(<span class="st">&quot;Barnier&quot;</span>, <span class="st">&quot;Beto&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()</code></pre></div>
+<div id="substrings-with-substr" class="section level2">
+<h2><span class="header-section-number">11.1</span> substrings with <code>substr</code></h2>
+<p>Substrings can be created with <code>substr</code>. It’s syntax is simple:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">substr</span>(x, start, end)</code></pre></div>
+<ul>
+<li><code>x</code> is a column</li>
+<li><code>start</code>, <code>end</code> are the (1-based) start and end positions in the string. <code>start</code> and <code>end</code> must be specified, you cannot leave one out to take everything. <code>Inf</code> is not allowed either.</li>
+</ul>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">substr</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="dv">3</span>, <span class="dv">30</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name     x
+## 1 Barnier rnier
+## 2    Beto    to</code></pre>
+<p>This extracts characters 3 to 30 (i.e. from 3 till end) from these names.</p>
+<p><strong>Warning</strong>: in SparkR &lt; 2.3.0, start position was to be given <em>one past</em> the first character to be extracted. So in the example above, one has to use <code>substr(column(&quot;names&quot;), 4, 20)</code></p>
+</div>
+<div id="startswith-endswith" class="section level2">
+<h2><span class="header-section-number">11.2</span> startsWith, endsWith</h2>
+<p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
+<span class="kw">endsWith</span>(column, substring)</code></pre></div>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">endsWith</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;to&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name     x
+## 1 Barnier FALSE
+## 2    Beto  TRUE</code></pre>
+</div>
+<div id="pattern-in-strings-contain" class="section level2">
+<h2><span class="header-section-number">11.3</span> Pattern in strings: <code>contain</code></h2>
+<p><code>contain(column, pattern)</code> tests simple (non-regexp) patterns in string columns:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">contains</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;ar&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name     x
+## 1 Barnier  TRUE
+## 2    Beto FALSE</code></pre>
+<p>Regexp patterns are treated literally (?) and do not work (2.3.1).</p>
+</div>
+<div id="regexp-replacement-regexp_replace" class="section level2">
+<h2><span class="header-section-number">11.4</span> Regexp replacement: <code>regexp_replace</code></h2>
+<p>Syntax: <code>regexp_replace(x, pattern, replacement)</code> where <code>x</code> is to column to operate on. Pattern is a regexp, and replacement can contain <a href="https://docs.oracle.com/javase/7/docs/api/java/util/regex/Pattern.html">java regexp groups</a> $1, $2 etc.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">regexp_replace</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;r(.*)&quot;</span>, <span class="st">&quot;R&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name    x
+## 1 Barnier  BaR
+## 2    Beto Beto</code></pre>
+<p>Here is another example using java replacement group $1:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">regexp_replace</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;r(.*)&quot;</span>, <span class="st">&quot;R$1&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name       x
+## 1 Barnier BaRnier
+## 2    Beto    Beto</code></pre>
+</div>
+</div>
 <div id="handling-dates" class="section level1">
-<h1><span class="header-section-number">11</span> Handling Dates</h1>
+<h1><span class="header-section-number">12</span> Handling Dates</h1>
 <div id="timestamps" class="section level2">
-<h2><span class="header-section-number">11.1</span> Timestamps</h2>
-<p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. The spark internal format of choice would be <em>utc_timestamp</em>, the timestamp in UTC time zone. The way there may be slightly circuituous:</p>
+<h2><span class="header-section-number">12.1</span> Timestamps</h2>
+<p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. It is often useful to keep data consistently in UTC time as <em>utc_timestamp</em>. The way there includes two steps:</p>
 <ol style="list-style-type: decimal">
-<li><p>Convert the character representation (say, column “date”) into <em>unix_timestamp</em> with</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd/yyyy hh:mm:ss&quot;</span>)</code></pre></div>
+<li><p>Convert the character representation (say, column “date”) into <em>timestamp</em> with</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd/yyyy hh:mm:ss&quot;</span>)</code></pre></div>
 <p>Note: spark expects <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java date formatting</a>, not <code>strptime</code> date formatting.</p></li>
-<li><p>As <em>to_utc_timestamp</em> we will use below expects <em>timestamp</em> class, not <em>unix_timestamp</em>, one has to cast it into <em>timestamp</em>:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">cast</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;timestamp&quot;</span>)</code></pre></div></li>
-<li><p>Finally, we can convert the column into <em>utc_timestamp</em> using the correct timezone for the original data:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;AFT&quot;</span>)
+<li><p>Convert <em>timestamp</em> into <em>utc_timestamp</em> using the correct timezone for the original data:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>)
                        <span class="co"># use AFT time zone</span></code></pre></div>
 <p><strong>Warning</strong>: if the time zone acronym is unknown, it will be silently ignored.</p></li>
 </ol>
 <p>An example script that performs all these tasks:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">date=</span><span class="kw">c</span>(<span class="st">&quot;9/21 1949 18:44:33&quot;</span>, <span class="st">&quot;5/3 2018 11:04:11&quot;</span>)))
 dateDF2 &lt;-<span class="st"> </span>dateDF <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">cast</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;timestamp&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>))
 dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
@@ -844,18 +895,17 @@ dateDF2 <span class="op">%&gt;%</span>
 <p>Indeed, UTC time is less than Kabul time by 4 hours 30 mins.</p>
 <p>The above can also be achieved in a more compact manner as:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">unix_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">                      </span><span class="kw">cast</span>(<span class="st">&quot;timestamp&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">                      </span><span class="kw">to_utc_timestamp</span>(<span class="st">&quot;Asia/Kabul&quot;</span>)
               ) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
 <pre><code>##                  date
-## 1 2014-03-22 14:14:33
+## 1 1949-09-21 14:14:33
 ## 2 2018-05-03 06:34:11</code></pre>
 <p>(spark 2.1.2)</p>
 </div>
 <div id="formatting-dates" class="section level2">
-<h2><span class="header-section-number">11.2</span> Formatting dates</h2>
+<h2><span class="header-section-number">12.2</span> Formatting dates</h2>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -876,11 +926,11 @@ dateDF2 <span class="op">%&gt;%</span>
 <p>(spark 2.2.0)</p>
 </div>
 <div id="date-specific-functions" class="section level2">
-<h2><span class="header-section-number">11.3</span> Date-specific functions</h2>
+<h2><span class="header-section-number">12.3</span> Date-specific functions</h2>
 <div id="converting-data" class="section level3">
-<h3><span class="header-section-number">11.3.1</span> Converting data</h3>
+<h3><span class="header-section-number">12.3.1</span> Converting data</h3>
 <div id="date-as-utc_timestamp-into-a-given-time-zone-from_utc_timestamp" class="section level4">
-<h4><span class="header-section-number">11.3.1.1</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
+<h4><span class="header-section-number">12.3.1.1</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
 <p><code>from_utc_timestamp(y, x)</code>: converts <em>y</em> into timestamp in time zone <em>x</em></p>
 <ul>
 <li><code>y</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -897,9 +947,9 @@ dateDF2 <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="extracting-datetime-information" class="section level3">
-<h3><span class="header-section-number">11.3.2</span> Extracting date/time information</h3>
+<h3><span class="header-section-number">12.3.2</span> Extracting date/time information</h3>
 <div id="day-of-week-dayofweek" class="section level4">
-<h4><span class="header-section-number">11.3.2.1</span> Day of week <code>dayofweek</code></h4>
+<h4><span class="header-section-number">12.3.2.1</span> Day of week <code>dayofweek</code></h4>
 <p><code>dayofweek(x)</code>: day of week. Sunday=1, Saturday=7. Introduced in spark 2.3.0.</p>
 <ul>
 <li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -913,7 +963,7 @@ dateDF2 <span class="op">%&gt;%</span>
 ## 2 2018-05-03 06:34:11         5</code></pre>
 </div>
 <div id="hour-hour" class="section level4">
-<h4><span class="header-section-number">11.3.2.2</span> Hour <code>hour</code></h4>
+<h4><span class="header-section-number">12.3.2.2</span> Hour <code>hour</code></h4>
 <p><code>hour(x)</code>: hour, in 24h format.</p>
 <ul>
 <li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -930,19 +980,19 @@ dateDF2 <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
-<h1><span class="header-section-number">12</span> other notes (draft)</h1>
+<h1><span class="header-section-number">13</span> other notes (draft)</h1>
 <div id="web-monitoring-ports" class="section level2">
-<h2><span class="header-section-number">12.1</span> Web Monitoring Ports</h2>
+<h2><span class="header-section-number">13.1</span> Web Monitoring Ports</h2>
 <p>if you start spark locally (–master local[n]), then the 8080 and 8081 ports are not there, only 4040.</p>
 </div>
 <div id="merging-by-a-large-number-of-keys" class="section level2">
-<h2><span class="header-section-number">12.2</span> Merging by a large number of keys</h2>
+<h2><span class="header-section-number">13.2</span> Merging by a large number of keys</h2>
 <p>during merges (and possibly sorts) you may end up with being out of memory with error message like</p>
 <p>java.lang.IllegalArgumentException: Cannot allocate a page with more than 17179869176 bytes</p>
 <p>This is claimed to be related to grouping by key. Spark tries to allocate equal amount of memory for each key, and if the distribution is skewed, it attempts to allocate too much.</p>
 </div>
 <div id="finding-na-s" class="section level2">
-<h2><span class="header-section-number">12.3</span> finding NA-s</h2>
+<h2><span class="header-section-number">13.3</span> finding NA-s</h2>
 <p>I cannot understand how is.nan works. Use instead</p>
 <p>isNull(col)</p>
 <p>or</p>
@@ -950,24 +1000,24 @@ dateDF2 <span class="op">%&gt;%</span>
 <p>they can be used for filtering and they mark NA-s as TRUE</p>
 </div>
 <div id="user-defined-functions" class="section level2">
-<h2><span class="header-section-number">12.4</span> User-Defined Functions</h2>
+<h2><span class="header-section-number">13.4</span> User-Defined Functions</h2>
 <p>when doing UDF-s and return data.frame, you may get “Unsupported type for serialization” error. This may be related to the fact that returned data.frame converts strings to factors and sparkR cannot serialize factors. Use stringsAsFactors=FALSE</p>
 </div>
 <div id="parquet-file-for-temporary-data" class="section level2">
-<h2><span class="header-section-number">12.5</span> Parquet file for temporary data</h2>
+<h2><span class="header-section-number">13.5</span> Parquet file for temporary data</h2>
 <p>you cannot easily overwrite parquet file with new data. The old cache remains in memory and it causes errors.</p>
 </div>
 <div id="reading-data" class="section level2">
-<h2><span class="header-section-number">12.6</span> Reading Data</h2>
+<h2><span class="header-section-number">13.6</span> Reading Data</h2>
 <p>read.parquet(): expects a list of files as the first argument read.df() expects a path where to read all the files as the first argument</p>
 <p>(spark 2.2)</p>
 </div>
 <div id="pivot" class="section level2">
-<h2><span class="header-section-number">12.7</span> pivot</h2>
+<h2><span class="header-section-number">13.7</span> pivot</h2>
 <p>don’t pivot on groupBy columns</p>
 </div>
 <div id="dapply" class="section level2">
-<h2><span class="header-section-number">12.8</span> dapply</h2>
+<h2><span class="header-section-number">13.8</span> dapply</h2>
 <p>the chunks fed to dapply are roungly of the size #obs/#partitions. nParallel dapply processes are run in parallel.</p>
 <p>If you get error message <code>error in parallel:::mcfork unable to create a pipe</code> then you may have run out of processes. Spark 2.1.2 and R 3.5.0 did not play nicely with dapply leaving zombies, until you run out of the available processes. In this case fewer partitions may help. Issue seems to be gone when switching to spark 2.3.1.</p>
 <p>One runs a separate dapply process for each partition? At least the number of dapply invocations seems to equal the number of partitions.</p>
