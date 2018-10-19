@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-10-16" />
+<meta name="date" content="2018-10-19" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-10-16</em></h4>
+<h4 class="date"><em>2018-10-19</em></h4>
 
 </div>
 
@@ -290,10 +290,24 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 </div>
 </div>
 </div>
-<div id="configuration" class="section level1">
-<h1><span class="header-section-number">3</span> Configuration</h1>
-<div id="getting-run-time-configuration" class="section level2">
-<h2><span class="header-section-number">3.1</span> Getting Run-Time Configuration</h2>
+<div id="installing-and-invoking-spark" class="section level1">
+<h1><span class="header-section-number">3</span> Installing and Invoking Spark</h1>
+<div id="installation" class="section level2">
+<h2><span class="header-section-number">3.1</span> Installation</h2>
+<p>Local installation on linux is very easy and straightforward:</p>
+<ol style="list-style-type: decimal">
+<li><a href="https://spark.apache.org/downloads.html">download the latest version</a></li>
+<li>decompress it into a suitable location (e.g. <code>$HOME/local</code>)</li>
+<li><p>If you intend to use spark from outside of R, you should also set</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">SPARK_HOME=$HOME</span>/local/spark-x.x.x-bin-hadoop</code></pre></div>
+<p>or whatever is your exact installation directory. When only relying on R, the location of spark home can also be set when initializing spark session.</p></li>
+</ol>
+<p><a href="https://dzone.com/articles/working-on-apache-spark-on-windows">Windows installation</a> is more involved.</p>
+</div>
+<div id="configuration" class="section level2">
+<h2><span class="header-section-number">3.2</span> Configuration</h2>
+<div id="getting-run-time-configuration" class="section level3">
+<h3><span class="header-section-number">3.2.1</span> Getting Run-Time Configuration</h3>
 <p>The basic run-time configuration can be returned by <code>sparkR.conf()</code>. Without any arguments it returns all set options:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">sparkR.conf</span>()</code></pre></div>
 <pre><code>## $log4j.logger.org.apache.parquet
@@ -340,10 +354,10 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 ## 
 ## $spark.ui.showConsoleProgress
 ## [1] &quot;true&quot;</code></pre>
-<p>Note that there is no obvious entry for parallelism. When invoked locally, it is visible in the for of “master[2]”, but no separate entry is provided (2.2.1).</p>
+<p>Note that there is no obvious entry for parallelism. When invoked locally, it is visible as the entry of <code>spark.master</code>, here “local[2]”, but no dedicated number is provided (2.3.1).</p>
 </div>
-<div id="compression-codecs" class="section level2">
-<h2><span class="header-section-number">3.2</span> Compression Codecs</h2>
+<div id="compression-codecs" class="section level3">
+<h3><span class="header-section-number">3.2.2</span> Compression Codecs</h3>
 <p>By default, spark compresses parquet files by snappy codec which creates rather large temporary files. You have to configure it explicitly to use something else, such as “gzip”. The codec must be specificed during the spark session initialization through <em>sparkConfig</em> argument. <em>sparkConfig</em> is a list of configuration options in the form of <em>name</em> = <em>value</em> and name for parquet compression is <em>spark.sql.parquet.compression.codec</em>. Value must be a string. For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[8]&quot;</span>,
                      <span class="dt">appName =</span> <span class="st">&quot;mySparkApp&quot;</span>,
@@ -351,20 +365,21 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
                      )</code></pre></div>
 <p>Note: this must be done when spark session is initialized, later calls to <code>sparkR.conf</code> do not work. Neither can you configure spark before you have initialized the sparkSession.</p>
 </div>
-<div id="java-heap-memory" class="section level2">
-<h2><span class="header-section-number">3.3</span> Java heap memory</h2>
+<div id="java-heap-memory" class="section level3">
+<h3><span class="header-section-number">3.2.3</span> Java heap memory</h3>
 <p>Spark driver memory can be set when creating the spark session with the <code>spark.driver.memory</code> option. It takes character values like <code>&quot;4g&quot;</code>:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[2]&quot;</span>,
                      <span class="dt">sparkConfig=</span><span class="kw">list</span>(<span class="dt">spark.driver.memory=</span><span class="st">&quot;8g&quot;</span>)
                      )</code></pre></div>
 <p>If this is too small, you get java out-of-memory errors related to java heap space.</p>
 </div>
-<div id="temporary-directories" class="section level2">
-<h2><span class="header-section-number">3.4</span> Temporary Directories</h2>
+<div id="temporary-directories" class="section level3">
+<h3><span class="header-section-number">3.2.4</span> Temporary Directories</h3>
 <p>Spark stores quite a bit of temporary data on disk so you should ensure you have plenty of disk space. The location of temporary folders can be set in the environment variable <code>SPARK_LOCAL_DIRS</code> as a comma-separated list of directories:</p>
 <div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">SPARK_LOCAL_DIRS=</span><span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/tmp,/tmp&quot;</span></code></pre></div>
 <p>This creates temporary folders in two locations, one in <code>$HOME/tmp</code> and another in <code>/tmp</code>. The folders appear in pairs, names like <code>blockmgr-6e392c2c...</code> and <code>spark-f0e4221e...</code>.</p>
 <p>Spark splits data to be saved roughly equally onto both of these devices. This means, in particular, that when one of the devices is full, spark fails even if there is still plenty of space on the other (2.1.2).</p>
+</div>
 </div>
 </div>
 <div id="data-input" class="section level1">
@@ -442,6 +457,27 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 ## 2 1953     Xi</code></pre>
 <p><code>select</code> is rather permissive in it’s arguments, in addition to the above, one can also use <code>select(c(&quot;yob&quot;, &quot;family&quot;))</code> and <code>select(list(&quot;yob&quot;, &quot;family&quot;))</code>.</p>
 </div>
+<div id="filtering-observations" class="section level2">
+<h2><span class="header-section-number">5.2</span> Filtering observations</h2>
+<p>The way to filter observations is <code>filter</code>. It expects a column expression.</p>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfa <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(<span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>) <span class="op">&gt;</span><span class="st"> </span><span class="dv">1950</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   family    name  yob
+## 1     Xi Jinping 1953</code></pre>
+<p>Filter will not work with multiple condidions, you have to use logical operators.</p>
+<p>Filter wants your values to be of a single class, including a single value for S3 classes. This sometimes creates warnings, e.g. with dates that have class of <code>c(&quot;POSIXct&quot;, &quot;POSIXt&quot;)</code>:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">date =</span> <span class="kw">ISOdatetime</span>(<span class="dv">2018</span>,<span class="dv">10</span>,<span class="dv">17</span>,<span class="dv">14</span>,<span class="dv">34</span>,<span class="dv">12</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>) <span class="op">==</span><span class="st"> </span><span class="kw">ISOdatetime</span>(<span class="dv">2018</span>,<span class="dv">10</span>,<span class="dv">17</span>,<span class="dv">14</span>,<span class="dv">34</span>,<span class="dv">12</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>## Warning in if (class(e2) == &quot;Column&quot;) {: the condition has length &gt; 1 and
+## only the first element will be used</code></pre>
+<pre><code>##                  date
+## 1 2018-10-17 14:34:12</code></pre>
+<p>It still works, but the warning is unpleasant.</p>
+<p>Note that you cannot use <code>suppressWarnings</code> with piping.</p>
+</div>
 </div>
 <div id="working-with-data-the-map-part" class="section level1">
 <h1><span class="header-section-number">6</span> Working with data: the <em>map</em> part</h1>
@@ -450,8 +486,8 @@ dfa[,<span class="kw">c</span>(<span class="st">&quot;yob&quot;</span>, <span cl
 <p>One can access single columns with the <code>$</code>-operator and the <code>column</code> function. The <code>$</code>-operator works in a fairly similar manner than for ordinary data frames. Note that in case of piping where your intermediate dataframe does not have a name, you may access the columns with <code>.$</code> way like <code>.$foo</code>.</p>
 <p>Function <code>column</code> is an alternative, it takes column name as a character: <code>column(&quot;foo&quot;)</code>.</p>
 </div>
-<div id="creating-new-columns-column-expressions" class="section level2">
-<h2><span class="header-section-number">6.2</span> Creating new columns: column expressions</h2>
+<div id="creating-new-columns-column-expressions-withcolumn-and-mutate" class="section level2">
+<h2><span class="header-section-number">6.2</span> Creating new columns: column expressions, <code>withColumn</code> and <code>mutate</code></h2>
 <p>There are three functions for computing on columns: <code>withColumn</code>, <code>mutate</code> and <code>transform</code>. All of these can either create new, or overwrite existing columns.</p>
 <p>The arguments for <code>withColumn</code> are:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">withColumn</span>(dataframe, columnName, expression)</code></pre></div>
@@ -486,6 +522,7 @@ It may include mathematical and string operations and other column-oriented func
 ## 1     Hu  Jintao 1942      76      58
 ## 2     Xi Jinping 1953      65      47</code></pre>
 <p>Note that <code>name</code> must be unquoted. We need two <code>withColumn</code> commands to achieve equivalent results.</p>
+<p>Mutate has some quirks with short variable names, such as <code>x</code> sometimes not working and leading to obscure errors.</p>
 <p>Finally, <code>transform</code> seems to be pretty much an alias for <code>mutate</code>.</p>
 <div id="constant-columns" class="section level3">
 <h3><span class="header-section-number">6.2.1</span> Constant columns</h3>
@@ -850,8 +887,31 @@ temp <span class="op">%&gt;%</span>
 ## 2    Beto FALSE</code></pre>
 <p>Regexp patterns are treated literally (?) and do not work (2.3.1).</p>
 </div>
+<div id="where-is-pattern-in-string-instr" class="section level2">
+<h2><span class="header-section-number">11.4</span> Where is pattern in string: <code>instr</code></h2>
+<p><code>instr(y, x)</code> finds the location of the first occurrence of substring (not regexp) <code>x</code> in column <code>y</code>. Positions inside of string are counted from 1, returns 0 if the substring not found:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">xs =</span> <span class="kw">instr</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;ar&quot;</span>),
+          <span class="dt">xr =</span> <span class="kw">instr</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;a.&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name xs xr
+## 1 Barnier  2  0
+## 2    Beto  0  0</code></pre>
+<p>Regexp patterns are treated literally (?) and do not work (2.3.1).</p>
+</div>
+<div id="concat" class="section level2">
+<h2><span class="header-section-number">11.5</span> Concatenating strings: <code>concat</code></h2>
+<p><code>concat(x, ...)</code> concatenates string column <code>x</code> with other columns:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">mName =</span> <span class="kw">concat</span>(<span class="kw">lit</span>(<span class="st">&quot;M. &quot;</span>), <span class="kw">column</span>(<span class="st">&quot;name&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##      name      mName
+## 1 Barnier M. Barnier
+## 2    Beto    M. Beto</code></pre>
+<p>No space is inserted between the two concatenated columns.</p>
+</div>
 <div id="regexp-replacement-regexp_replace" class="section level2">
-<h2><span class="header-section-number">11.4</span> Regexp replacement: <code>regexp_replace</code></h2>
+<h2><span class="header-section-number">11.6</span> Regexp replacement: <code>regexp_replace</code></h2>
 <p>Syntax: <code>regexp_replace(x, pattern, replacement)</code> where <code>x</code> is to column to operate on. Pattern is a regexp, and replacement can contain <a href="https://docs.oracle.com/javase/7/docs/api/java/util/regex/Pattern.html">java regexp groups</a> $1, $2 etc.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">regexp_replace</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;r(.*)&quot;</span>, <span class="st">&quot;R&quot;</span>)) <span class="op">%&gt;%</span>
@@ -870,42 +930,49 @@ temp <span class="op">%&gt;%</span>
 </div>
 <div id="handling-dates" class="section level1">
 <h1><span class="header-section-number">12</span> Handling Dates</h1>
-<div id="timestamps" class="section level2">
-<h2><span class="header-section-number">12.1</span> Timestamps</h2>
-<p>It is not immediately obvious how to handle dates inside spark. In CSV files the date data is usually in some sort of <em>yyyy-mm-dd</em> form which will be read as character string. It is often useful to keep data consistently in UTC time as <em>utc_timestamp</em>. The way there includes two steps:</p>
-<ol style="list-style-type: decimal">
-<li><p>Convert the character representation (say, column “date”) into <em>timestamp</em> with</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd/yyyy hh:mm:ss&quot;</span>)</code></pre></div>
-<p>Note: spark expects <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java date formatting</a>, not <code>strptime</code> date formatting.</p></li>
-<li><p>Convert <em>timestamp</em> into <em>utc_timestamp</em> using the correct timezone for the original data:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>)
-                       <span class="co"># use AFT time zone</span></code></pre></div>
-<p><strong>Warning</strong>: if the time zone acronym is unknown, it will be silently ignored.</p></li>
-</ol>
-<p>An example script that performs all these tasks:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">date=</span><span class="kw">c</span>(<span class="st">&quot;9/21 1949 18:44:33&quot;</span>, <span class="st">&quot;5/3 2018 11:04:11&quot;</span>)))
-dateDF2 &lt;-<span class="st"> </span>dateDF <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>))
-dateDF2 <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##                  date
-## 1 1949-09-21 14:14:33
-## 2 2018-05-03 06:34:11</code></pre>
-<p>Indeed, UTC time is less than Kabul time by 4 hours 30 mins.</p>
-<p>The above can also be achieved in a more compact manner as:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">                      </span><span class="kw">to_utc_timestamp</span>(<span class="st">&quot;Asia/Kabul&quot;</span>)
-              ) <span class="op">%&gt;%</span>
-<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
-<pre><code>##                  date
-## 1 1949-09-21 14:14:33
-## 2 2018-05-03 06:34:11</code></pre>
-<p>(spark 2.1.2)</p>
+<div id="dates-and-timestamps" class="section level2">
+<h2><span class="header-section-number">12.1</span> Dates and Timestamps</h2>
+<p>There are two time formats of choice: dates and timestamps. Dates only represent a date (a day) while timestamps record the instance in seconds. You probably want to use the former if the event spans the whole day (like birthday) and the latter if the event is about a specific point of time (say the beginning of a phone call). Both dates and timestamps can be converted to each other. Both dates and timestamps contain timezone information, timestamps are stored in UTC internally but when you <code>collect()</code> timestamp data, the result will be printed in the current (as set in your operating system) timezone by R. The similar conversion occurs with dates, it will be converted to the date in your current timezone (as set in your operating system) at 00:00:00 midnight in the date’s timezone (<a href="#date-converting-spark-R">see below</a>).</p>
+<p>There are three types of timestamps:</p>
+<ul>
+<li><em>timestamp</em>: ordinary timestamp</li>
+<li><em>utc_timestamp</em>:</li>
+<li><em>unix_timestamp</em>: just a number of seconds since the UNIX epoch (1970-01-01).</li>
+</ul>
+<p>When comparing and converting dates and timestamps, spark assumes the date is a timestamp that occurs 00:00:00 at the relevant time zone.</p>
 </div>
-<div id="formatting-dates" class="section level2">
-<h2><span class="header-section-number">12.2</span> Formatting dates</h2>
+<div id="converting-data-in-and-out-of-timestamps" class="section level2">
+<h2><span class="header-section-number">12.2</span> Converting data in and out of timestamps</h2>
+<p>We demonstrate the date handling below using this data frame:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">string=</span><span class="kw">c</span>(<span class="st">&quot;9/21 1949 18:44:33&quot;</span>, <span class="st">&quot;5/3 2018 11:04:11&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+<span class="kw">collect</span>(dateDF)</code></pre></div>
+<pre><code>##               string
+## 1 9/21 1949 18:44:33
+## 2  5/3 2018 11:04:11</code></pre>
+<div id="from-character-representation" class="section level3">
+<h3><span class="header-section-number">12.2.1</span> From character representation</h3>
+<p>In CSV files the date data is usually in some form of <em>yyyy-mm-dd</em> form which will be read as character string. This can be converted to timestamps with <code>to_timestamp</code>. However, this assumes the time is given in the current time zone (as set in your operating system):</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 &lt;-<span class="st"> </span>dateDF <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;string&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>))
+<span class="kw">collect</span>(dateDF2)</code></pre></div>
+<pre><code>##               string                date
+## 1 9/21 1949 18:44:33 1949-09-21 18:44:33
+## 2  5/3 2018 11:04:11 2018-05-03 11:04:11</code></pre>
+<p>As you can see, the result, printed in your current time zone, correspond exactly to the string representation. <code>to_timestamp</code> assumes the time is in your current time zone.</p>
+<p>If the original time is not given in your current time zone, you can add the time zone descriptor by <a href="#concat"><code>concat</code></a> to the string. For instance, if the original time was given in Kabul time (UTC+4:30), you can add the tz descriptor “+04:30” (note the leading “0”) while also adding TZ format symbol “XXX” (see more in <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java SimpleDateFormat</a>):</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>,
+              <span class="kw">to_timestamp</span>(<span class="kw">concat</span>(<span class="kw">column</span>(<span class="st">&quot;string&quot;</span>), <span class="kw">lit</span>(<span class="st">&quot;+04:30&quot;</span>)),
+                           <span class="st">&quot;MM/dd yyyy HH:mm:ssXXX&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##               string                date
+## 1 9/21 1949 18:44:33 1949-09-21 06:14:33
+## 2  5/3 2018 11:04:11 2018-05-02 23:34:11</code></pre>
+<p>Now the date-column is different from the string representation (unless your OS is set to the Afghan tz).</p>
+</div>
+<div id="formatting-dates-back-to-characters" class="section level3">
+<h3><span class="header-section-number">12.2.2</span> Formatting dates back to characters</h3>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -924,6 +991,29 @@ dateDF2 <span class="op">%&gt;%</span>
 ## 2 2018-05-03 06:34:11 20180503</code></pre>
 <p><strong>Warning</strong>: you must put the column in the first position in <code>withColumn</code> arithmetic expression. A literal number in the first position, such as <code>10000*year(column(&quot;date&quot;))</code> gives an error.</p>
 <p>(spark 2.2.0)</p>
+</div>
+<div id="date-converting-spark-R" class="section level3">
+<h3><span class="header-section-number">12.2.3</span> Converting between R and spark</h3>
+<p>These rules apply when converting R dataframes into spark with <code>createDataFrame</code>.</p>
+<p>R <em>Date</em>-s will be converted to <em>date</em> type. This only applies to the objects of true <em>Date</em> class, not to the dates with timezones in lubridate which are actually <em>POSIXct</em> objects (except if the timezone is “UTC” or similar).</p>
+<p>R timestamps, i.e. <em>POSIXct</em> objects will be converted to <em>timestamps</em>. This also applies to dates with timezones as long as these are internally <em>POSIXct</em> objects.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">date=</span><span class="kw">as.Date</span>(<span class="st">&quot;2018-10-19&quot;</span>), <span class="dt">dateTZ=</span>lubridate<span class="op">::</span><span class="kw">ymd</span>(<span class="st">&quot;2018-10-19&quot;</span>, <span class="dt">tz=</span><span class="st">&quot;Asia/Kabul&quot;</span>))
+<span class="kw">sapply</span>(df, class)</code></pre></div>
+<pre><code>## $date
+## [1] &quot;Date&quot;
+## 
+## $dateTZ
+## [1] &quot;POSIXct&quot; &quot;POSIXt&quot;</code></pre>
+<p>The first column, <em>date</em> is of class <em>Date</em>, the second is <em>POSIXct</em>.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">createDataFrame</span>() <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">printSchema</span>()</code></pre></div>
+<pre><code>## root
+##  |-- date: date (nullable = true)
+##  |-- dateTZ: timestamp (nullable = true)</code></pre>
+<p>As you can see, <em>date</em> is of class <em>date</em>, while <em>dateTZ</em> is <em>timestamp</em>. Dates with time zone set are not true dates in R.</p>
+<p>When converting the spark time objects back to R with <code>collect()</code>, one get’s <em>POSIXct</em> objects from timestamps and <em>Date</em>-s from dates. Both are normally printed for the current time zone (as set in your operating system).</p>
+<p>Dates with timezones in spark are converted to <em>Date</em> assuming the represent the instant 00:00:00 at the corresponding day and time zone (i.e. the TZ for this particular date), and the day of that instant in the <em>current timezone</em> is converted to R <em>Date</em> object. So the result depends on your timezone settings!</p>
+</div>
 </div>
 <div id="date-specific-functions" class="section level2">
 <h2><span class="header-section-number">12.3</span> Date-specific functions</h2>
@@ -944,6 +1034,28 @@ dateDF2 <span class="op">%&gt;%</span>
 ## 1 1949-09-21 14:14:33 1949-09-21 22:14:33
 ## 2 2018-05-03 06:34:11 2018-05-03 14:34:11</code></pre>
 <p>Indeed, Shanghai time is 8 hours ahead of UTC.</p>
+</div>
+<div id="get-date-from-timestamp-or-string-to_date" class="section level4">
+<h4><span class="header-section-number">12.3.1.2</span> Get date from timestamp or string: <code>to_date</code></h4>
+<p><em>timestamp</em> includes time in seconds, <em>date</em> only concerns dates. You can convert the former to the latter as with <code>to_date(x, format)</code> where <code>x</code> is the column, and <code>format</code> is the format string, only applicable if <code>x</code> is a character column. By default it uses ISO dates with <code>format = &quot;yyyy-MM-dd&quot;</code>.</p>
+<p>Example:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;ymd&quot;</span>, <span class="kw">to_date</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##               string                date        ymd
+## 1 9/21 1949 18:44:33 1949-09-21 14:14:33 1949-09-21
+## 2  5/3 2018 11:04:11 2018-05-03 06:34:11 2018-05-03</code></pre>
+</div>
+<div id="timestamp-from-character-to_timestamp" class="section level4">
+<h4><span class="header-section-number">12.3.1.3</span> <em>timestamp</em> from character: <code>to_timestamp()</code></h4>
+<p><code>to_timestamp(x, format)</code> converts column <code>x</code> to timestamp using <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java SimpleDateFormat</a> specifications.</p>
+<p>An example script that performs all these tasks:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">date =</span> <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;string&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##               string                date
+## 1 9/21 1949 18:44:33 1949-09-21 18:44:33
+## 2  5/3 2018 11:04:11 2018-05-03 11:04:11</code></pre>
 </div>
 </div>
 <div id="extracting-datetime-information" class="section level3">
