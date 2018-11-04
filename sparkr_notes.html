@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-10-19" />
+<meta name="date" content="2018-10-23" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-10-19</em></h4>
+<h4 class="date"><em>2018-10-23</em></h4>
 
 </div>
 
@@ -970,6 +970,16 @@ temp <span class="op">%&gt;%</span>
 ## 1 9/21 1949 18:44:33 1949-09-21 06:14:33
 ## 2  5/3 2018 11:04:11 2018-05-02 23:34:11</code></pre>
 <p>Now the date-column is different from the string representation (unless your OS is set to the Afghan tz).</p>
+<p>The fact that time output is always converted to your local time zone may feel confusing and make code incoherent between different time zones. In this case on should choose to keep time in <em>utc_timestamp</em>:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateUTC &lt;-<span class="st"> </span>dateDF <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">date =</span> <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;string&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">dateUTC =</span> <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;Asia/Kabul&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()
+dateUTC</code></pre></div>
+<pre><code>##               string                date             dateUTC
+## 1 9/21 1949 18:44:33 1949-09-21 18:44:33 1949-09-21 14:14:33
+## 2  5/3 2018 11:04:11 2018-05-03 11:04:11 2018-05-03 06:34:11</code></pre>
+<p>This converts the string date into an UTC timestamp, assuming the original data was given in the Afghanistan time. From the R point of view, the <em>utc_timestamp</em> is just a <em>POSIXct</em> object, exactly as <em>timestamp</em> objects with no additional attributes, even not <code>tzone</code> set.</p>
 </div>
 <div id="formatting-dates-back-to-characters" class="section level3">
 <h3><span class="header-section-number">12.2.2</span> Formatting dates back to characters</h3>
@@ -1019,8 +1029,19 @@ temp <span class="op">%&gt;%</span>
 <h2><span class="header-section-number">12.3</span> Date-specific functions</h2>
 <div id="converting-data" class="section level3">
 <h3><span class="header-section-number">12.3.1</span> Converting data</h3>
+<div id="to_utc_timestamp" class="section level4">
+<h4><span class="header-section-number">12.3.1.1</span> <code>to_utc_timestamp</code></h4>
+<p><code>to_utc_timestamp(y, x)</code> convert column <em>y</em> into <em>utc_timestamp</em> in time zone <code>x</code>. <code>x</code> must be provided as text (like <em>US/Pacific</em>), numeric form (as <em>-08:00</em>) does not work.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">dateUTC =</span> <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;US/Pacific&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##               string                date             dateUTC
+## 1 9/21 1949 18:44:33 1949-09-21 18:44:33 1949-09-22 02:44:33
+## 2  5/3 2018 11:04:11 2018-05-03 11:04:11 2018-05-03 18:04:11</code></pre>
+<p>Seems like <em>utc_timestamp</em> is not converted to the local time zone when collecting/printing. <em>UTC</em> is ahead of <em>US/Pacific</em> by 8 hours in september and 7 hours in early March.</p>
+</div>
 <div id="date-as-utc_timestamp-into-a-given-time-zone-from_utc_timestamp" class="section level4">
-<h4><span class="header-section-number">12.3.1.1</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
+<h4><span class="header-section-number">12.3.1.2</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
 <p><code>from_utc_timestamp(y, x)</code>: converts <em>y</em> into timestamp in time zone <em>x</em></p>
 <ul>
 <li><code>y</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -1036,7 +1057,7 @@ temp <span class="op">%&gt;%</span>
 <p>Indeed, Shanghai time is 8 hours ahead of UTC.</p>
 </div>
 <div id="get-date-from-timestamp-or-string-to_date" class="section level4">
-<h4><span class="header-section-number">12.3.1.2</span> Get date from timestamp or string: <code>to_date</code></h4>
+<h4><span class="header-section-number">12.3.1.3</span> Get date from timestamp or string: <code>to_date</code></h4>
 <p><em>timestamp</em> includes time in seconds, <em>date</em> only concerns dates. You can convert the former to the latter as with <code>to_date(x, format)</code> where <code>x</code> is the column, and <code>format</code> is the format string, only applicable if <code>x</code> is a character column. By default it uses ISO dates with <code>format = &quot;yyyy-MM-dd&quot;</code>.</p>
 <p>Example:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
@@ -1047,7 +1068,7 @@ temp <span class="op">%&gt;%</span>
 ## 2  5/3 2018 11:04:11 2018-05-03 06:34:11 2018-05-03</code></pre>
 </div>
 <div id="timestamp-from-character-to_timestamp" class="section level4">
-<h4><span class="header-section-number">12.3.1.3</span> <em>timestamp</em> from character: <code>to_timestamp()</code></h4>
+<h4><span class="header-section-number">12.3.1.4</span> <em>timestamp</em> from character: <code>to_timestamp()</code></h4>
 <p><code>to_timestamp(x, format)</code> converts column <code>x</code> to timestamp using <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java SimpleDateFormat</a> specifications.</p>
 <p>An example script that performs all these tasks:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
@@ -1076,6 +1097,7 @@ temp <span class="op">%&gt;%</span>
 </div>
 <div id="hour-hour" class="section level4">
 <h4><span class="header-section-number">12.3.2.2</span> Hour <code>hour</code></h4>
+<p>Extract hour in the current (as set in os) timezone.</p>
 <p><code>hour(x)</code>: hour, in 24h format.</p>
 <ul>
 <li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -1087,6 +1109,14 @@ temp <span class="op">%&gt;%</span>
 <pre><code>##                  date hour
 ## 1 1949-09-21 14:14:33   14
 ## 2 2018-05-03 06:34:11    6</code></pre>
+<p>Note: hour is extracted from the timestamp after converting it into the current time zone. Use date in <em>utc_timestamp</em> if you want the hour in UTC.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">dateUTC =</span> <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;US/Pacific&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">hour =</span> <span class="kw">hour</span>(<span class="kw">column</span>(<span class="st">&quot;dateUTC&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##               string                date             dateUTC hour
+## 1 9/21 1949 18:44:33 1949-09-21 18:44:33 1949-09-22 02:44:33    2
+## 2  5/3 2018 11:04:11 2018-05-03 11:04:11 2018-05-03 18:04:11   18</code></pre>
 </div>
 </div>
 </div>
