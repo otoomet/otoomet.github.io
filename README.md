@@ -4,6 +4,8 @@ Public html pages
 
 # Topics:
 
+## Timing various R constructs
+
 [1D single-key lookup timing in R](simple_lookup_R.html): testing the
 speed of several methods to look data up in 1D structures in R, using
 integer keys and values.  Only assessing single-key lookup.  Benchmark
@@ -19,6 +21,9 @@ python/pandas.
 
 [Speed of loops in R](timing-loops.html): testing built-in and
 `foreach`-family loops for different data size and parallelism.
+
+
+## Other notes
 
 [SparkR Notes](sparkr_notes.html): notes and solutions to certain
 issues I have had with SparkR.
