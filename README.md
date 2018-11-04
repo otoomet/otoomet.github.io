@@ -14,7 +14,11 @@ to the one above, but now testing longish vectors of keys.  Benchmark it
 with python dict and pandas.
 
 [2D table lookup timing in R](table_lookup_in_R.html): testing a few
-methods to look data up in 2D tables in R, and benchmark it with python/pandas.
+methods to look data up in 2D tables in R, and benchmark it with
+python/pandas.
+
+[Speed of loops in R](timing-loops.html): testing built-in and
+`foreach`-family loops for different data size and parallelism.
 
 [SparkR Notes](sparkr_notes.html): notes and solutions to certain
 issues I have had with SparkR.
