@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-10-23" />
+<meta name="date" content="2018-11-29" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -246,7 +246,7 @@ div.tocify {
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
 <h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
 <h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-10-23</em></h4>
+<h4 class="date"><em>2018-11-29</em></h4>
 
 </div>
 
@@ -294,54 +294,96 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 <h1><span class="header-section-number">3</span> Installing and Invoking Spark</h1>
 <div id="installation" class="section level2">
 <h2><span class="header-section-number">3.1</span> Installation</h2>
-<p>Local installation on linux is very easy and straightforward:</p>
+<div id="installing-spark" class="section level3">
+<h3><span class="header-section-number">3.1.1</span> Installing Spark</h3>
+<p>As spark is running on Java VM, you need java. Spark 2.2–2.4 only work on java 1.8. If you already have a correct version of java installed, the rest on linux and mac is just a straight sailing:</p>
 <ol style="list-style-type: decimal">
 <li><a href="https://spark.apache.org/downloads.html">download the latest version</a></li>
 <li>decompress it into a suitable location (e.g. <code>$HOME/local</code>)</li>
 <li><p>If you intend to use spark from outside of R, you should also set</p>
 <div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">SPARK_HOME=$HOME</span>/local/spark-x.x.x-bin-hadoop</code></pre></div>
-<p>or whatever is your exact installation directory. When only relying on R, the location of spark home can also be set when initializing spark session.</p></li>
+<p>or whatever is your exact installation directory. When only relying on R, the location of spark home can be set when initializing spark session.</p></li>
 </ol>
-<p><a href="https://dzone.com/articles/working-on-apache-spark-on-windows">Windows installation</a> is more involved.</p>
+<p><a href="https://dzone.com/articles/working-on-apache-spark-on-windows">Windows installation</a> is more involved: you have to set a few paths and permissions.</p>
+</div>
+<div id="installing-java" class="section level3">
+<h3><span class="header-section-number">3.1.2</span> Installing correct version of java</h3>
+<p>If you have never previously installed java, you can just add the most recent Java 1.8.</p>
+<p>If you have an incompatible version, you can add another java fairly easily. On debian-based <strong>linux</strong> (such as ubuntu), you can select the default java by</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="fu">sudo</span> update-alternatives --config javac</code></pre></div>
+<p>this updates a few symlinks to ensure the correct java version is taken as default.</p>
+<p>Another way is just to specify the <code>JAVA_HOME</code> environment variable. This approach also works on <strong>Mac</strong>, and it allows you to pick a specific version of java just for Spark while leaving the system defaults untouched. When running Spark from inside R, the easiest approach is to set the environment variable by <code>Sys.setenv</code> with something like (on a mac)</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">Sys.setenv</span>(<span class="dt">JAVA_HOME=</span><span class="st">&quot;/Library/Java/JavaVirtualMachines/jdk1.8.0_52.jdk/Contents/Home&quot;</span>)</code></pre></div>
+<p>where the path must correspond the correct Java 1.8 path on your computer.</p>
+<p>Correct java must be specified before you initiate the spark session.</p>
+</div>
+</div>
+<div id="starting-spark" class="section level2">
+<h2><span class="header-section-number">3.2</span> Starting Spark</h2>
+<div id="just-get-it-to-run" class="section level3">
+<h3><span class="header-section-number">3.2.1</span> Just get it to run</h3>
+<p>Here we only describe how to start spark from inside R. You have to a) load the library from a non-standard location, and b) initiate spark session. This can be done along the following lines:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">SPARK_HOME &lt;-<span class="st"> </span><span class="kw">file.path</span>(<span class="kw">Sys.getenv</span>(<span class="st">&quot;HOME&quot;</span>), <span class="st">&quot;local&quot;</span>, <span class="st">&quot;spark&quot;</span>)
+                           <span class="co"># this is the directory where your spark is located</span>
+ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="kw">paste0</span>(<span class="st">&quot;local[1]&quot;</span>),
+                     <span class="dt">sparkHome =</span> SPARK_HOME,
+                     <span class="dt">appName =</span> <span class="st">&quot;spark demo&quot;</span>)
+                           <span class="co"># note: SparkR with capital S</span>
+ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[2]&quot;</span>, <span class="dt">appName =</span> <span class="st">&quot;spark demo&quot;</span>)
+                           <span class="co"># note: sparkR with lower case s</span></code></pre></div>
+<p>the <code>SPARK_HOME</code> points to the folder where spark is installed. If you downloaded and decompressed it into <code>~/Downloads</code>, the correct path may look like <code>SPARK_HOME &lt;- &quot;~/Downloads/spark-2.4.0-hadoop2.7/R/lib&quot;</code>. <code>lib.loc</code> argument points to “R/lib” folder inside it. Note: including <code>sparkHome</code> argument is only needed if you did not specify <code>SPARK_HOME</code> environment variable as indicated above under <a href="#installing-spark">installation</a>.</p>
+<p>If you have to choose a specific java version (<a href="#installing-java">see above</a>), do it <em>before you start spark session</em>. You may as well do it before loading the library.</p>
+</div>
+<div id="options" class="section level3">
+<h3><span class="header-section-number">3.2.2</span> Options</h3>
+<p><code>sparkR.session</code> accepts a number of options:</p>
+<ul>
+<li><code>master</code> is the location the spark master (driver). <code>&quot;local[n]&quot;</code> mean spark will be run locally, on your computer, utilizing <em>n</em> cpus. You can also use <code>&quot;local[*]&quot;</code> if you want to utilize all logical cpus (one process per cpu thread).</li>
+<li><code>sparkConfig</code> is a list of configuration options. The more interesting ones are:
+<ul>
+<li><code>spark.driver.memory</code>: how much memory to allocate to the spark driver (or the complete spark process if run locally). Use character strings, such as <code>&quot;500m&quot;</code> or <code>&quot;4g&quot;</code>.</li>
+</ul></li>
+</ul>
+</div>
 </div>
 <div id="configuration" class="section level2">
-<h2><span class="header-section-number">3.2</span> Configuration</h2>
+<h2><span class="header-section-number">3.3</span> Configuration</h2>
 <div id="getting-run-time-configuration" class="section level3">
-<h3><span class="header-section-number">3.2.1</span> Getting Run-Time Configuration</h3>
+<h3><span class="header-section-number">3.3.1</span> Getting Run-Time Configuration</h3>
 <p>The basic run-time configuration can be returned by <code>sparkR.conf()</code>. Without any arguments it returns all set options:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">sparkR.conf</span>()</code></pre></div>
 <pre><code>## $log4j.logger.org.apache.parquet
 ## [1] &quot;INFO&quot;
 ## 
 ## $spark.app.id
-## [1] &quot;local-1535603215389&quot;
+## [1] &quot;local-1543510527717&quot;
 ## 
 ## $spark.app.name
 ## [1] &quot;sparkNotes&quot;
 ## 
 ## $spark.driver.host
-## [1] &quot;10.0.0.21&quot;
+## [1] &quot;D-172-28-100-20.dhcp4.washington.edu&quot;
 ## 
 ## $spark.driver.memory
 ## [1] &quot;8g&quot;
 ## 
 ## $spark.driver.port
-## [1] &quot;45605&quot;
+## [1] &quot;34487&quot;
+## 
+## $spark.executorEnv.LD_LIBRARY_PATH
+## [1] &quot;$LD_LIBRARY_PATH:/usr/lib/R/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/jvm/default-java/jre/lib/amd64/server&quot;
 ## 
 ## $spark.executor.id
 ## [1] &quot;driver&quot;
 ## 
-## $spark.executorEnv.LD_LIBRARY_PATH
-## [1] &quot;$LD_LIBRARY_PATH:/usr/lib/R/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/jvm/default-java/lib/server&quot;
-## 
 ## $spark.home
-## [1] &quot;/home/siim/local/spark-2.3.1-bin-hadoop2.7&quot;
+## [1] &quot;/home/otoomet/local/spark-2.3.1-bin-hadoop2.7&quot;
 ## 
 ## $spark.master
 ## [1] &quot;local[2]&quot;
 ## 
 ## $spark.r.sql.derby.temp.dir
-## [1] &quot;/tmp/RtmpqKGPxd&quot;
+## [1] &quot;/tmp/RtmpWw2yUX&quot;
 ## 
 ## $spark.sql.catalogImplementation
 ## [1] &quot;hive&quot;
@@ -357,7 +399,7 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 <p>Note that there is no obvious entry for parallelism. When invoked locally, it is visible as the entry of <code>spark.master</code>, here “local[2]”, but no dedicated number is provided (2.3.1).</p>
 </div>
 <div id="compression-codecs" class="section level3">
-<h3><span class="header-section-number">3.2.2</span> Compression Codecs</h3>
+<h3><span class="header-section-number">3.3.2</span> Compression Codecs</h3>
 <p>By default, spark compresses parquet files by snappy codec which creates rather large temporary files. You have to configure it explicitly to use something else, such as “gzip”. The codec must be specificed during the spark session initialization through <em>sparkConfig</em> argument. <em>sparkConfig</em> is a list of configuration options in the form of <em>name</em> = <em>value</em> and name for parquet compression is <em>spark.sql.parquet.compression.codec</em>. Value must be a string. For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[8]&quot;</span>,
                      <span class="dt">appName =</span> <span class="st">&quot;mySparkApp&quot;</span>,
@@ -366,7 +408,7 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 <p>Note: this must be done when spark session is initialized, later calls to <code>sparkR.conf</code> do not work. Neither can you configure spark before you have initialized the sparkSession.</p>
 </div>
 <div id="java-heap-memory" class="section level3">
-<h3><span class="header-section-number">3.2.3</span> Java heap memory</h3>
+<h3><span class="header-section-number">3.3.3</span> Java heap memory</h3>
 <p>Spark driver memory can be set when creating the spark session with the <code>spark.driver.memory</code> option. It takes character values like <code>&quot;4g&quot;</code>:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ss &lt;-<span class="st"> </span><span class="kw">sparkR.session</span>(<span class="dt">master =</span> <span class="st">&quot;local[2]&quot;</span>,
                      <span class="dt">sparkConfig=</span><span class="kw">list</span>(<span class="dt">spark.driver.memory=</span><span class="st">&quot;8g&quot;</span>)
@@ -374,7 +416,7 @@ df2 &lt;-<span class="st"> </span><span class="kw">checkpoint</span>(df1)</code>
 <p>If this is too small, you get java out-of-memory errors related to java heap space.</p>
 </div>
 <div id="temporary-directories" class="section level3">
-<h3><span class="header-section-number">3.2.4</span> Temporary Directories</h3>
+<h3><span class="header-section-number">3.3.4</span> Temporary Directories</h3>
 <p>Spark stores quite a bit of temporary data on disk so you should ensure you have plenty of disk space. The location of temporary folders can be set in the environment variable <code>SPARK_LOCAL_DIRS</code> as a comma-separated list of directories:</p>
 <div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">SPARK_LOCAL_DIRS=</span><span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/tmp,/tmp&quot;</span></code></pre></div>
 <p>This creates temporary folders in two locations, one in <code>$HOME/tmp</code> and another in <code>/tmp</code>. The folders appear in pairs, names like <code>blockmgr-6e392c2c...</code> and <code>spark-f0e4221e...</code>.</p>
@@ -1098,7 +1140,7 @@ dateUTC</code></pre></div>
 <div id="hour-hour" class="section level4">
 <h4><span class="header-section-number">12.3.2.2</span> Hour <code>hour</code></h4>
 <p>Extract hour in the current (as set in os) timezone.</p>
-<p><code>hour(x)</code>: hour, in 24h format.</p>
+<p><code>hour(x)</code>: hour (integer), in 24h format.</p>
 <ul>
 <li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
 </ul>
