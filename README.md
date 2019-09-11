@@ -30,3 +30,6 @@ issues I have had with SparkR.
 
 [Bad photocopy effect with gimp](photocopy-effect-with-gimp.html): how
 to create text that looks like a low-resolution photocopy.
+
+[OO Mapper tutorial](https://otoomet.bitbucket.io/oomapper-tutorial.html):
+how to use OpenOrienteering Mapper for various tasks.
