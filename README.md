@@ -25,6 +25,9 @@ python/pandas.
 
 ## Other notes
 
+[math cheatsheet](math_cheatsheet/math_cheatsheet.pdf): various
+mathematical and statistical formulas.
+
 [SparkR Notes](sparkr_notes.html): notes and solutions to certain
 issues I have had with SparkR.
 
