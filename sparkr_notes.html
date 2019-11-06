@@ -1874,7 +1874,11 @@ It may include mathematical and string operations and other column-oriented func
 ## 1     Hu  Jintao 1942      76      58
 ## 2     Xi Jinping 1953      65      47</code></pre>
 <p>Note that <code>name</code> must be unquoted. We need two <code>withColumn</code> commands to achieve equivalent results.</p>
-<p>Mutate has some quirks with short variable names, such as <code>x</code> sometimes not working and leading to obscure errors.</p>
+<p>Mutate has some quirks:</p>
+<ul>
+<li>short variable names, such as <code>x</code>, sometimes do not work and lead to obscure errors.</li>
+<li>if you use <code>mutate</code> to create more than one variable, you cannot use the previously created variables in the next expressions. You need a new <code>mutate</code> call.</li>
+</ul>
 <p>Finally, <code>transform</code> seems to be pretty much an alias for <code>mutate</code>.</p>
 <div id="constant-columns" class="section level3">
 <h3><span class="header-section-number">6.2.1</span> Constant columns</h3>
@@ -1992,7 +1996,7 @@ It may include mathematical and string operations and other column-oriented func
 <p>There is a long list of <code>agg</code>-s aggregation functions (<code>x</code> is a column):</p>
 <ul>
 <li><code>avg(x)</code>: average value. Missings are ignored.</li>
-<li><code>count(x)</code>: count number of objects (alias <code>n</code>)</li>
+<li><code>count(x)</code>: count number of objects (alias <code>n</code>). Returns an integer.</li>
 <li><code>first(x, na.rm=FALSE)</code>: return the first element in the group</li>
 <li><code>n(x)</code>: count number of objects (alias <code>count</code>)</li>
 <li><code>sum(x)</code>: add the values</li>
@@ -2347,14 +2351,16 @@ It may include mathematical and string operations and other column-oriented func
 </div>
 <div id="concat" class="section level2">
 <h2><span class="header-section-number">9.5</span> Concatenating strings: <code>concat</code></h2>
-<p><code>concat(x, ...)</code> concatenates string column <code>x</code> with other columns. If you want to insert a character constant you have to put into <code>lit(..)</code> function to create a constant column:</p>
+<p><code>concat(x, ...)</code> concatenates column <code>x</code> with other columns. Numeric columns are automatically converted to string colums. If you want to insert a character constant you have to put into <code>lit(..)</code> function to create a constant column:</p>
 <div class="sourceCode" id="cb113"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb113-1" title="1">names <span class="op">%&gt;%</span></a>
-<a class="sourceLine" id="cb113-2" title="2"><span class="st">   </span><span class="kw">mutate</span>(<span class="dt">mName =</span> <span class="kw">concat</span>(<span class="kw">lit</span>(<span class="st">&quot;M. &quot;</span>), <span class="kw">column</span>(<span class="st">&quot;name&quot;</span>))) <span class="op">%&gt;%</span></a>
-<a class="sourceLine" id="cb113-3" title="3"><span class="st">   </span><span class="kw">collect</span>()</a></code></pre></div>
-<pre><code>##      name      mName
-## 1 Barnier M. Barnier
-## 2    Beto    M. Beto</code></pre>
+<a class="sourceLine" id="cb113-2" title="2"><span class="st">   </span><span class="kw">mutate</span>(<span class="dt">yob =</span> <span class="kw">lit</span>(1980L)) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb113-3" title="3"><span class="st">   </span><span class="kw">mutate</span>(<span class="dt">mName =</span> <span class="kw">concat</span>(<span class="kw">lit</span>(<span class="st">&quot;M. &quot;</span>), <span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="kw">lit</span>(<span class="st">&quot; &quot;</span>), <span class="kw">column</span>(<span class="st">&quot;yob&quot;</span>))) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb113-4" title="4"><span class="st">   </span><span class="kw">collect</span>()</a></code></pre></div>
+<pre><code>##      name  yob           mName
+## 1 Barnier 1980 M. Barnier 1980
+## 2    Beto 1980    M. Beto 1980</code></pre>
 <p>No space is inserted between the two concatenated columns.</p>
+<p><code>concat</code> can only concat columns, not other expressions, even not <code>cast</code> expressions where converting other columns to strings.</p>
 </div>
 <div id="regexp-replacement-regexp_replace" class="section level2">
 <h2><span class="header-section-number">9.6</span> Regexp replacement: <code>regexp_replace</code></h2>
