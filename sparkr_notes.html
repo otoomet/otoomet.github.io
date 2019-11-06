@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ott Toomet" />
 
-<meta name="date" content="2018-11-29" />
+<meta name="date" content="2019-11-06" />
 
 <title>Taming Spark and SparkR</title>
 
@@ -28,7 +28,7 @@
 
 
 <style type="text/css">code{white-space: pre;}</style>
-<style type="text/css">
+<style type="text/css" data-origin="pandoc">
 div.sourceCode { overflow-x: auto; }
 table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
   margin: 0; padding: 0; vertical-align: baseline; border: none; }
@@ -64,7 +64,29 @@ code > span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Doc
 code > span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
 code > span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
 code > span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+
 </style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' || rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
 <style type="text/css">
   pre:not([class]) {
     background-color: white;
@@ -100,9 +122,7 @@ h6 {
 </style>
 
 
-</head>
 
-<body>
 
 <style type="text/css">
 .main-container {
@@ -121,24 +141,88 @@ img {
 .tabbed-pane {
   padding-top: 12px;
 }
+.html-widget {
+  margin-bottom: 20px;
+}
 button.code-folding-btn:focus {
   outline: none;
+}
+summary {
+  display: list-item;
 }
 </style>
 
 
 
-<div class="container-fluid main-container">
-
 <!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
 <script>
 $(document).ready(function () {
   window.buildTabsets("TOC");
 });
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
 </script>
 
 <!-- code folding -->
-
 
 
 
@@ -227,6 +311,16 @@ div.tocify {
 
 </style>
 
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
 <!-- setup 3col/9col grid for toc_float and main content  -->
 <div class="row-fluid">
 <div class="col-xs-12 col-sm-4 col-md-3">
@@ -244,9 +338,9 @@ div.tocify {
 
 
 <h1 class="title toc-ignore">Taming Spark and SparkR</h1>
-<h3 class="subtitle"><em>While Waiting for Better Documentation</em></h3>
-<h4 class="author"><em>Ott Toomet</em></h4>
-<h4 class="date"><em>2018-11-29</em></h4>
+<h3 class="subtitle">While Waiting for Better Documentation</h3>
+<h4 class="author">Ott Toomet</h4>
+<h4 class="date">2019-11-06</h4>
 
 </div>
 
@@ -683,14 +777,18 @@ data <span class="op">%&gt;%</span>
 <ul>
 <li><code>avg(x)</code>: average value. Missings are ignored.</li>
 <li><code>count(x)</code>: count number of objects (alias <code>n</code>)</li>
+<li><code>first(x, na.rm=FALSE)</code>: return the first element in the group</li>
 <li><code>n(x)</code>: count number of objects (alias <code>count</code>)</li>
+<li><code>sum(x)</code>: add the values</li>
 </ul>
 </div>
 </div>
-<div id="merging" class="section level1">
-<h1><span class="header-section-number">8</span> Merging</h1>
-<div id="rbind-concatenating-by-rows" class="section level2">
-<h2><span class="header-section-number">8.1</span> <code>rbind</code>: concatenating by rows</h2>
+<div id="messing-data-around-merge-order-and-pivot" class="section level1">
+<h1><span class="header-section-number">8</span> Messing data around: merge, order and pivot</h1>
+<div id="merging" class="section level2">
+<h2><span class="header-section-number">8.1</span> Merging</h2>
+<div id="rbind-concatenating-by-rows" class="section level3">
+<h3><span class="header-section-number">8.1.1</span> <code>rbind</code>: concatenating by rows</h3>
 <p>Adding nother dataframe underneath a spark dataframe is done with <code>rbind</code>, exactly as in case of base R:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names1 &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">name=</span><span class="st">&quot;sune&quot;</span>, <span class="dt">age=</span><span class="dv">17</span>) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()
@@ -703,8 +801,8 @@ names2 &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span cl
 ## 2 jestin  33</code></pre>
 <p>Both data frames must have the same columns in exactly the same order. If the order does not match, you get an error <code>Names of input data frames are different</code>, even if the names are the same and the problem lies just in the order.</p>
 </div>
-<div id="merging-and-joining" class="section level2">
-<h2><span class="header-section-number">8.2</span> Merging and joining</h2>
+<div id="merging-and-joining" class="section level3">
+<h3><span class="header-section-number">8.1.2</span> Merging and joining</h3>
 <p>SparkR features two similar functions: <code>merge</code> and <code>join</code>. They do not behave in quite the same manner.</p>
 <p>Merge syntax is rather similar to that of base::merge:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">merge</span>(x, y, by, suffixes)</code></pre></div>
@@ -719,8 +817,8 @@ names2 &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span cl
 <li>Even if you want to retain just one version of the variable with it’s original name, you cannot specify something like <code>suffices=c(&quot;&quot;, &quot;_y&quot;)</code>. You get an error. (2.2.0)</li>
 </ul></li>
 </ul>
-<div id="merge-renames-variables-2.2.0" class="section level3">
-<h3><span class="header-section-number">8.2.1</span> Merge renames variables (2.2.0)</h3>
+<div id="merge-renames-variables-2.2.0" class="section level4">
+<h4><span class="header-section-number">8.1.2.1</span> Merge renames variables (2.2.0)</h4>
 <p>If merging two data frames on a column of similar name, <code>merge</code> creates new variables like <code>foo_x</code> and <code>foo_y</code> according to the respective origin data frame. For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">11</span><span class="op">:</span><span class="dv">12</span>, <span class="dt">c=</span><span class="kw">c</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;b&quot;</span>)))
 bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">21</span><span class="op">:</span><span class="dv">22</span>, <span class="dt">d=</span><span class="kw">c</span>(<span class="st">&quot;x&quot;</span>, <span class="st">&quot;y&quot;</span>)))
@@ -739,8 +837,8 @@ bar &lt;-<span class="st"> </span><span class="kw">createDataFrame</span>(<span 
 ## 1 1 11 a 1 21 x
 ## 2 2 12 b 2 22 y</code></pre>
 </div>
-<div id="merging-and-trivial-join-conditions" class="section level3">
-<h3><span class="header-section-number">8.2.2</span> Merging and “trivial” join conditions</h3>
+<div id="merging-and-trivial-join-conditions" class="section level4">
+<h4><span class="header-section-number">8.1.2.2</span> Merging and “trivial” join conditions</h4>
 <p>As stressed above, RDD is not just data but also information about how the data was created. <code>merge</code> can use some of this lineage information. In particular, if the key column is created through <code>lit()</code> constant, it refuses to merge. See the following examples:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">foo &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">a=</span><span class="dv">1</span><span class="op">:</span><span class="dv">2</span>, <span class="dt">b=</span><span class="dv">3</span><span class="op">:</span><span class="dv">4</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">createDataFrame</span>()
 foo <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">collect</span>()</code></pre></div>
@@ -768,8 +866,8 @@ baz <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">coll
 <p>fails with <em>Join condition is missing or trivial</em> error (2.3.1). Remember: dataframe is not just data but also the lineage information!</p>
 </div>
 </div>
-<div id="merging-and-lazy-evaluation" class="section level2">
-<h2><span class="header-section-number">8.3</span> Merging and lazy evaluation</h2>
+<div id="merging-and-lazy-evaluation" class="section level3">
+<h3><span class="header-section-number">8.1.3</span> Merging and lazy evaluation</h3>
 <p>Spark’s lazy evaluation makes debugging hard, the code may fail before it even reaches the problematic line.</p>
 <p>For instance, when ordering before merging where the merge introduces ambiguous columns you may see an error like:</p>
 <pre><code>org.apache.spark.sql.AnalysisException: Reference 'b' is ambiguous, could be: b#3, b#10.;</code></pre>
@@ -798,8 +896,8 @@ foo <span class="op">%&gt;%</span>
 <p>(Spark 2.2.1)</p>
 </div>
 </div>
-<div id="ordering-by-group" class="section level1">
-<h1><span class="header-section-number">9</span> Ordering by Group</h1>
+<div id="ordering-by-group" class="section level2">
+<h2><span class="header-section-number">8.2</span> Ordering by Group</h2>
 <p>Many common tasks require ordering by group. SparkR has multi-column ordering function (<code>arrange</code>) and multi-column grouping (<code>groupBy</code>). Unfortunately, these two do not play together. Assume we have temperature data</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">month =</span> <span class="kw">c</span>(<span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Nov&quot;</span>, <span class="st">&quot;Dec&quot;</span>, <span class="st">&quot;Dec&quot;</span>), <span class="dt">day=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">15</span>,<span class="dv">1</span>,<span class="dv">15</span>), <span class="dt">temp=</span><span class="kw">c</span>(<span class="dv">14</span>,<span class="dv">12</span>,<span class="dv">10</span>,<span class="dv">12</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()
@@ -816,8 +914,8 @@ temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">arrange</span>(<span class="st">&quot;temp&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">agg</span>(<span class="dt">maxDay =</span> day[<span class="dv">1</span>])</code></pre></div>
 <p>as grouped data cannot be arranged in spark.</p>
-<div id="window-functions" class="section level2">
-<h2><span class="header-section-number">9.1</span> Window Functions</h2>
+<div id="window-functions" class="section level3">
+<h3><span class="header-section-number">8.2.1</span> Window Functions</h3>
 <p>A correct solution seems to be to use window functions. Windows in SQL parlance are blocks of rows where one can do certain operations. Windows can be defined in a different ways, here we are interested partitioning data by keys into windows. This can be done as <code>windowPartitionBy(&quot;month&quot;)</code>. This tells spark that data must be “partitioned” by month (I guess the ‘partition’ here is not the same as RDD partition), and we can operate separately on these partitions.</p>
 <p>Now we want to order the partitions by temperature. This can be achieved by <code>ws &lt;- orderBy(windowPartitionBy(&quot;month&quot;), &quot;temp&quot;)</code>. Note we first define the window partition, and thereafter it’s ordering. These operations form our <em>window specification</em> <code>ws</code>. This is just specification, we haven’t touched the data yet.</p>
 <p>When done with window specification, one can use window functions. These can be invoked by <code>over(x, window)</code> where <code>x</code> is a column, mostly likely computed via window functions, and <code>window</code> is the window spec we defined above. To solve the task above, we can add the row number (i.e. temperature rank) for each day in month. So we can do:</p>
@@ -842,9 +940,9 @@ temp <span class="op">%&gt;%</span>
 ## 2   Nov   1   14   -14 1</code></pre>
 <p>Obviously, in the final version we may drop obsolete variables and order the data according to month.</p>
 </div>
-<div id="arrange---groupby" class="section level2">
-<h2><span class="header-section-number">9.2</span> <code>arrange</code> - <code>groupBy</code></h2>
-<p>Note: it is tempting to do go the following way instead:</p>
+<div id="arrange---groupby" class="section level3">
+<h3><span class="header-section-number">8.2.2</span> <code>arrange</code> - <code>groupBy</code></h3>
+<p>Note: it is tempting to do go the following way instead (<a href="#ordering-with-arrange">see</a>):</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">temp <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">arrange</span>(<span class="kw">column</span>(<span class="st">&quot;month&quot;</span>), <span class="kw">desc</span>(<span class="kw">column</span>(<span class="st">&quot;temp&quot;</span>))) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">groupBy</span>(<span class="st">&quot;month&quot;</span>) <span class="op">%&gt;%</span>
@@ -856,8 +954,8 @@ temp <span class="op">%&gt;%</span>
 <p>This is simple, and seems to work, at least locally. Unfortunately there is no guarantee that <code>groupBy</code> preserves the order (see <a href="https://issues.apache.org/jira/browse/SPARK-16207">SPARK-16207</a>).</p>
 </div>
 </div>
-<div id="arrange" class="section level1">
-<h1><span class="header-section-number">10</span> arrange</h1>
+<div id="ordering-with-arrange" class="section level2">
+<h2><span class="header-section-number">8.3</span> Ordering with <code>arrange</code></h2>
 <p>Spark dataframes can be ordered by <code>arrange</code> function. It orders the data by “natural order”, i.e. alphabetically for character columns and in numeric order for numerics. The syntax is similar to that of <em>dplyr</em>: <code>arrange(col, col, ...)</code>. However, there are two separate functions:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">arrange</span>(<span class="st">&quot;col1&quot;</span>, <span class="st">&quot;col2&quot;</span>, ...)</code></pre></div>
 <p>and</p>
@@ -882,13 +980,103 @@ temp <span class="op">%&gt;%</span>
 <p>One cannot mix the two approaches: <code>arrange(&quot;x&quot;, column(&quot;y&quot;))</code> will not work</p>
 <p>(2.2.1)</p>
 </div>
+<div id="pivoting" class="section level2">
+<h2><span class="header-section-number">8.4</span> Pivoting</h2>
+<p>Pivoting is a way to transform dataframe from long to wide format, and perform aggregation in the process.</p>
+<p>The arguments for <code>pivot</code> are:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">pivot</span>(x, colname, <span class="dt">values=</span><span class="kw">list</span>())</code></pre></div>
+<p>It takes in a grouped dataframe <code>x</code> and pivoting column <code>colname</code>. The result will be grouped by distinct values of the groups vertically (this is what the grouped data is about), and by distinct values of the pivot column horizontally (this is what <code>colname</code> does). The new column names are created from the pivoting column values, potentially combined with the name of the aggregation function. One may supply a pre-defined list of distinct pivoting values, it is claimed to be more efficient than to let spark figure these out itself. This vertical-horizontal grouping should be aggregated using <a href="#aggregating-with-agg">the <code>agg</code> function</a>). The entries for non-existing combinations will be <code>NA</code> in the aggregated table.</p>
+<p>Pivot has it’s quirks:</p>
+<ul>
+<li>distinct integer values will be converted to floats and you see values like <code>100.0</code> instead of <code>100</code> in column names. Convert the pivoting columns to characters. (spark 2.4.4)</li>
+</ul>
+<div id="example-create-an-aggregated-crosstable" class="section level3">
+<h3><span class="header-section-number">8.4.1</span> Example: Create an aggregated crosstable</h3>
+<p>Let’s create a simple long-form dataframe of three columns: <code>quarter</code>, <code>id</code>, and <code>result</code>:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfp &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">quarter=</span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span><span class="kw">rbinom</span>(<span class="dv">12</span>, <span class="dv">3</span>, <span class="fl">0.3</span>),
+                  <span class="dt">id =</span> (<span class="dv">100</span> <span class="op">+</span><span class="st"> </span><span class="kw">rbinom</span>(<span class="dv">12</span>,<span class="dv">4</span>,<span class="fl">0.5</span>)) <span class="op">%&gt;%</span>
+<span class="st">                     </span><span class="kw">as.character</span>(),
+                  <span class="dt">result=</span><span class="kw">runif</span>(<span class="dv">12</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">createDataFrame</span>()
+dfp <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>() <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">head</span>()</code></pre></div>
+<pre><code>##   quarter  id     result
+## 1       1 102 0.26722067
+## 2       2 102 0.38611409
+## 3       2 103 0.01339033
+## 4       3 102 0.38238796
+## 5       1 103 0.86969085
+## 6       3 104 0.34034900</code></pre>
+<p>and pivot it into wide form: group the data by <code>quarter</code> (in rows) and by <code>id</code> (in columns), and each cell in the table is sum of the corresponding <code>result</code>s:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfp <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">groupBy</span>(<span class="st">&quot;quarter&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">pivot</span>(<span class="st">&quot;id&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">agg</span>(<span class="kw">sum</span>(<span class="kw">column</span>(<span class="st">&quot;result&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   quarter       101       102       103      104
+## 1       1 0.8546843 1.0945940 0.8696908       NA
+## 2       3        NA 0.8644681        NA 0.340349
+## 3       2        NA 0.3861141 1.1064975       NA</code></pre>
+<p>Now we have a wide form data frame where for each quarter (row) we have sum of results for each id (columns). Note the many missing values: for instance, id 101 did not have any results in quarter 2.</p>
+</div>
+<div id="example-find-rankings" class="section level3">
+<h3><span class="header-section-number">8.4.2</span> Example: find rankings</h3>
+<p>As the next example, let’s find the largest and second-largest result for each quarter-id combination using the same data as above.</p>
+<p>Our first task is to rank the results by group. We use <a href="#window-functions">window functions</a> to do this:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ws &lt;-<span class="st"> </span><span class="kw">orderBy</span>(<span class="kw">windowPartitionBy</span>(<span class="st">&quot;quarter&quot;</span>, <span class="st">&quot;id&quot;</span>), <span class="st">&quot;negResult&quot;</span>)</code></pre></div>
+<p>As we want to find the largest values (i.e. rank in descending order), we have to create <code>negResult</code>, the negative of the <code>result</code>, as spark <code>orderBy</code> can only do it in ascending order. Thereafter we create the corresponding rank variable, and retain only the two largest values. Finally, we create a new column <code>idrank</code> that contains the id and rank in a form that is suitable for the final column name after pivoting (remember, pivot creates column names from values):</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfp <span class="op">%&lt;&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">negResult =</span> <span class="op">-</span><span class="kw">column</span>(<span class="st">&quot;result&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">rank =</span> <span class="kw">over</span>(<span class="kw">row_number</span>(), ws)) <span class="op">%&gt;%</span>
+<span class="st">                           </span><span class="co"># compute the descending rank 'rank'</span>
+<span class="st">   </span><span class="kw">filter</span>(<span class="kw">column</span>(<span class="st">&quot;rank&quot;</span>) <span class="op">&lt;=</span><span class="st"> </span><span class="dv">2</span>) <span class="op">%&gt;%</span>
+<span class="st">                           </span><span class="co"># retain only the two largest results</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">idrank =</span> <span class="kw">concat</span>(<span class="kw">lit</span>(<span class="st">&quot;id-&quot;</span>), <span class="kw">column</span>(<span class="st">&quot;id&quot;</span>),
+                          <span class="kw">lit</span>(<span class="st">&quot;-&quot;</span>), <span class="kw">column</span>(<span class="st">&quot;rank&quot;</span>)))
+                           <span class="co"># note: have to use 'concat',</span>
+                           <span class="co"># not 'paste'</span>
+                           <span class="co"># character constants must be</span>
+                           <span class="co"># in 'lit'</span>
+dfp <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##    quarter  id    result  negResult rank   idrank
+## 1        3 102 0.4820801 -0.4820801    1 id-102-1
+## 2        3 102 0.3823880 -0.3823880    2 id-102-2
+## 3        2 103 0.5995658 -0.5995658    1 id-103-1
+## 4        2 103 0.4935413 -0.4935413    2 id-103-2
+## 5        1 102 0.8273733 -0.8273733    1 id-102-1
+## 6        1 102 0.2672207 -0.2672207    2 id-102-2
+## 7        2 102 0.3861141 -0.3861141    1 id-102-1
+## 8        1 103 0.8696908 -0.8696908    1 id-103-1
+## 9        3 104 0.3403490 -0.3403490    1 id-104-1
+## 10       1 101 0.6684667 -0.6684667    1 id-101-1
+## 11       1 101 0.1862176 -0.1862176    2 id-101-2</code></pre>
+<p>Now we have everything prepared. We group the result by quarter (quarters will remain in rows) and pivot by <code>idrank</code>, these will be in columns. Finally we aggregate by just picking the first value of <code>result</code>. Aggregation mechanism is not very important here as all the quarter-id-rank groups should only contain a single value.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dfp <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">groupBy</span>(<span class="st">&quot;quarter&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">pivot</span>(<span class="st">&quot;idrank&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">agg</span>(<span class="kw">first</span>(<span class="kw">column</span>(<span class="st">&quot;result&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
+<pre><code>##   quarter  id-101-1  id-101-2  id-102-1  id-102-2  id-103-1  id-103-2
+## 1       1 0.6684667 0.1862176 0.8273733 0.2672207 0.8696908        NA
+## 2       3        NA        NA 0.4820801 0.3823880        NA        NA
+## 3       2        NA        NA 0.3861141        NA 0.5995658 0.4935413
+##   id-104-1
+## 1       NA
+## 2 0.340349
+## 3       NA</code></pre>
+<p>Note the number of missing values in the result. For instance, as id 101 does not have any record for quarter 2, the corresponding entries are missing.</p>
+</div>
+</div>
+</div>
 <div id="working-with-strings" class="section level1">
-<h1><span class="header-section-number">11</span> Working with strings</h1>
+<h1><span class="header-section-number">9</span> Working with strings</h1>
 <p>The following examples use a tiny dataframe of names:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">name=</span><span class="kw">c</span>(<span class="st">&quot;Barnier&quot;</span>, <span class="st">&quot;Beto&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()</code></pre></div>
 <div id="substrings-with-substr" class="section level2">
-<h2><span class="header-section-number">11.1</span> substrings with <code>substr</code></h2>
+<h2><span class="header-section-number">9.1</span> substrings with <code>substr</code></h2>
 <p>Substrings can be created with <code>substr</code>. It’s syntax is simple:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">substr</span>(x, start, end)</code></pre></div>
 <ul>
@@ -906,7 +1094,7 @@ temp <span class="op">%&gt;%</span>
 <p><strong>Warning</strong>: in SparkR &lt; 2.3.0, start position was to be given <em>one past</em> the first character to be extracted. So in the example above, one has to use <code>substr(column(&quot;names&quot;), 4, 20)</code></p>
 </div>
 <div id="startswith-endswith" class="section level2">
-<h2><span class="header-section-number">11.2</span> startsWith, endsWith</h2>
+<h2><span class="header-section-number">9.2</span> startsWith, endsWith</h2>
 <p>These are utility functions that test if a string column starts or ends with a given substring. These return a logical column.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">startsWith</span>(column, substring)
 <span class="kw">endsWith</span>(column, substring)</code></pre></div>
@@ -919,7 +1107,7 @@ temp <span class="op">%&gt;%</span>
 ## 2    Beto  TRUE</code></pre>
 </div>
 <div id="pattern-in-strings-contain" class="section level2">
-<h2><span class="header-section-number">11.3</span> Pattern in strings: <code>contain</code></h2>
+<h2><span class="header-section-number">9.3</span> Pattern in strings: <code>contain</code></h2>
 <p><code>contain(column, pattern)</code> tests simple (non-regexp) patterns in string columns:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">contains</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;ar&quot;</span>)) <span class="op">%&gt;%</span>
@@ -930,7 +1118,7 @@ temp <span class="op">%&gt;%</span>
 <p>Regexp patterns are treated literally (?) and do not work (2.3.1).</p>
 </div>
 <div id="where-is-pattern-in-string-instr" class="section level2">
-<h2><span class="header-section-number">11.4</span> Where is pattern in string: <code>instr</code></h2>
+<h2><span class="header-section-number">9.4</span> Where is pattern in string: <code>instr</code></h2>
 <p><code>instr(y, x)</code> finds the location of the first occurrence of substring (not regexp) <code>x</code> in column <code>y</code>. Positions inside of string are counted from 1, returns 0 if the substring not found:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">mutate</span>(<span class="dt">xs =</span> <span class="kw">instr</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;ar&quot;</span>),
@@ -942,8 +1130,8 @@ temp <span class="op">%&gt;%</span>
 <p>Regexp patterns are treated literally (?) and do not work (2.3.1).</p>
 </div>
 <div id="concat" class="section level2">
-<h2><span class="header-section-number">11.5</span> Concatenating strings: <code>concat</code></h2>
-<p><code>concat(x, ...)</code> concatenates string column <code>x</code> with other columns:</p>
+<h2><span class="header-section-number">9.5</span> Concatenating strings: <code>concat</code></h2>
+<p><code>concat(x, ...)</code> concatenates string column <code>x</code> with other columns. If you want to insert a character constant you have to put into <code>lit(..)</code> function to create a constant column:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">mutate</span>(<span class="dt">mName =</span> <span class="kw">concat</span>(<span class="kw">lit</span>(<span class="st">&quot;M. &quot;</span>), <span class="kw">column</span>(<span class="st">&quot;name&quot;</span>))) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">collect</span>()</code></pre></div>
@@ -953,7 +1141,7 @@ temp <span class="op">%&gt;%</span>
 <p>No space is inserted between the two concatenated columns.</p>
 </div>
 <div id="regexp-replacement-regexp_replace" class="section level2">
-<h2><span class="header-section-number">11.6</span> Regexp replacement: <code>regexp_replace</code></h2>
+<h2><span class="header-section-number">9.6</span> Regexp replacement: <code>regexp_replace</code></h2>
 <p>Syntax: <code>regexp_replace(x, pattern, replacement)</code> where <code>x</code> is to column to operate on. Pattern is a regexp, and replacement can contain <a href="https://docs.oracle.com/javase/7/docs/api/java/util/regex/Pattern.html">java regexp groups</a> $1, $2 etc.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">names <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;x&quot;</span>, <span class="kw">regexp_replace</span>(<span class="kw">column</span>(<span class="st">&quot;name&quot;</span>), <span class="st">&quot;r(.*)&quot;</span>, <span class="st">&quot;R&quot;</span>)) <span class="op">%&gt;%</span>
@@ -971,9 +1159,9 @@ temp <span class="op">%&gt;%</span>
 </div>
 </div>
 <div id="handling-dates" class="section level1">
-<h1><span class="header-section-number">12</span> Handling Dates</h1>
+<h1><span class="header-section-number">10</span> Handling Dates</h1>
 <div id="dates-and-timestamps" class="section level2">
-<h2><span class="header-section-number">12.1</span> Dates and Timestamps</h2>
+<h2><span class="header-section-number">10.1</span> Dates and Timestamps</h2>
 <p>There are two time formats of choice: dates and timestamps. Dates only represent a date (a day) while timestamps record the instance in seconds. You probably want to use the former if the event spans the whole day (like birthday) and the latter if the event is about a specific point of time (say the beginning of a phone call). Both dates and timestamps can be converted to each other. Both dates and timestamps contain timezone information, timestamps are stored in UTC internally but when you <code>collect()</code> timestamp data, the result will be printed in the current (as set in your operating system) timezone by R. The similar conversion occurs with dates, it will be converted to the date in your current timezone (as set in your operating system) at 00:00:00 midnight in the date’s timezone (<a href="#date-converting-spark-R">see below</a>).</p>
 <p>There are three types of timestamps:</p>
 <ul>
@@ -984,7 +1172,7 @@ temp <span class="op">%&gt;%</span>
 <p>When comparing and converting dates and timestamps, spark assumes the date is a timestamp that occurs 00:00:00 at the relevant time zone.</p>
 </div>
 <div id="converting-data-in-and-out-of-timestamps" class="section level2">
-<h2><span class="header-section-number">12.2</span> Converting data in and out of timestamps</h2>
+<h2><span class="header-section-number">10.2</span> Converting data in and out of timestamps</h2>
 <p>We demonstrate the date handling below using this data frame:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">string=</span><span class="kw">c</span>(<span class="st">&quot;9/21 1949 18:44:33&quot;</span>, <span class="st">&quot;5/3 2018 11:04:11&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">createDataFrame</span>()
@@ -993,7 +1181,7 @@ temp <span class="op">%&gt;%</span>
 ## 1 9/21 1949 18:44:33
 ## 2  5/3 2018 11:04:11</code></pre>
 <div id="from-character-representation" class="section level3">
-<h3><span class="header-section-number">12.2.1</span> From character representation</h3>
+<h3><span class="header-section-number">10.2.1</span> From character representation</h3>
 <p>In CSV files the date data is usually in some form of <em>yyyy-mm-dd</em> form which will be read as character string. This can be converted to timestamps with <code>to_timestamp</code>. However, this assumes the time is given in the current time zone (as set in your operating system):</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 &lt;-<span class="st"> </span>dateDF <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date&quot;</span>, <span class="kw">to_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;string&quot;</span>), <span class="st">&quot;MM/dd yyyy HH:mm:ss&quot;</span>))
@@ -1024,7 +1212,7 @@ dateUTC</code></pre></div>
 <p>This converts the string date into an UTC timestamp, assuming the original data was given in the Afghanistan time. From the R point of view, the <em>utc_timestamp</em> is just a <em>POSIXct</em> object, exactly as <em>timestamp</em> objects with no additional attributes, even not <code>tzone</code> set.</p>
 </div>
 <div id="formatting-dates-back-to-characters" class="section level3">
-<h3><span class="header-section-number">12.2.2</span> Formatting dates back to characters</h3>
+<h3><span class="header-section-number">10.2.2</span> Formatting dates back to characters</h3>
 <p>When we want to convert a <em>utc_timestamp</em> back to string representation in UTC, we can use <code>date_format(column, format string)</code> (note: we need <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java format symbols</a> again). For instance:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">withColumn</span>(<span class="st">&quot;date2&quot;</span>, <span class="kw">date_format</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;yyyyMMdd&quot;</span>)) <span class="op">%&gt;%</span>
@@ -1045,7 +1233,7 @@ dateUTC</code></pre></div>
 <p>(spark 2.2.0)</p>
 </div>
 <div id="date-converting-spark-R" class="section level3">
-<h3><span class="header-section-number">12.2.3</span> Converting between R and spark</h3>
+<h3><span class="header-section-number">10.2.3</span> Converting between R and spark</h3>
 <p>These rules apply when converting R dataframes into spark with <code>createDataFrame</code>.</p>
 <p>R <em>Date</em>-s will be converted to <em>date</em> type. This only applies to the objects of true <em>Date</em> class, not to the dates with timezones in lubridate which are actually <em>POSIXct</em> objects (except if the timezone is “UTC” or similar).</p>
 <p>R timestamps, i.e. <em>POSIXct</em> objects will be converted to <em>timestamps</em>. This also applies to dates with timezones as long as these are internally <em>POSIXct</em> objects.</p>
@@ -1068,11 +1256,11 @@ dateUTC</code></pre></div>
 </div>
 </div>
 <div id="date-specific-functions" class="section level2">
-<h2><span class="header-section-number">12.3</span> Date-specific functions</h2>
+<h2><span class="header-section-number">10.3</span> Date-specific functions</h2>
 <div id="converting-data" class="section level3">
-<h3><span class="header-section-number">12.3.1</span> Converting data</h3>
+<h3><span class="header-section-number">10.3.1</span> Converting data</h3>
 <div id="to_utc_timestamp" class="section level4">
-<h4><span class="header-section-number">12.3.1.1</span> <code>to_utc_timestamp</code></h4>
+<h4><span class="header-section-number">10.3.1.1</span> <code>to_utc_timestamp</code></h4>
 <p><code>to_utc_timestamp(y, x)</code> convert column <em>y</em> into <em>utc_timestamp</em> in time zone <code>x</code>. <code>x</code> must be provided as text (like <em>US/Pacific</em>), numeric form (as <em>-08:00</em>) does not work.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
 <span class="st">   </span><span class="kw">mutate</span>(<span class="dt">dateUTC =</span> <span class="kw">to_utc_timestamp</span>(<span class="kw">column</span>(<span class="st">&quot;date&quot;</span>), <span class="st">&quot;US/Pacific&quot;</span>)) <span class="op">%&gt;%</span>
@@ -1083,7 +1271,7 @@ dateUTC</code></pre></div>
 <p>Seems like <em>utc_timestamp</em> is not converted to the local time zone when collecting/printing. <em>UTC</em> is ahead of <em>US/Pacific</em> by 8 hours in september and 7 hours in early March.</p>
 </div>
 <div id="date-as-utc_timestamp-into-a-given-time-zone-from_utc_timestamp" class="section level4">
-<h4><span class="header-section-number">12.3.1.2</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
+<h4><span class="header-section-number">10.3.1.2</span> Date as <em>utc_timestamp</em> into a given time zone: <code>from_utc_timestamp</code></h4>
 <p><code>from_utc_timestamp(y, x)</code>: converts <em>y</em> into timestamp in time zone <em>x</em></p>
 <ul>
 <li><code>y</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -1099,7 +1287,7 @@ dateUTC</code></pre></div>
 <p>Indeed, Shanghai time is 8 hours ahead of UTC.</p>
 </div>
 <div id="get-date-from-timestamp-or-string-to_date" class="section level4">
-<h4><span class="header-section-number">12.3.1.3</span> Get date from timestamp or string: <code>to_date</code></h4>
+<h4><span class="header-section-number">10.3.1.3</span> Get date from timestamp or string: <code>to_date</code></h4>
 <p><em>timestamp</em> includes time in seconds, <em>date</em> only concerns dates. You can convert the former to the latter as with <code>to_date(x, format)</code> where <code>x</code> is the column, and <code>format</code> is the format string, only applicable if <code>x</code> is a character column. By default it uses ISO dates with <code>format = &quot;yyyy-MM-dd&quot;</code>.</p>
 <p>Example:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF2 <span class="op">%&gt;%</span>
@@ -1110,7 +1298,7 @@ dateUTC</code></pre></div>
 ## 2  5/3 2018 11:04:11 2018-05-03 06:34:11 2018-05-03</code></pre>
 </div>
 <div id="timestamp-from-character-to_timestamp" class="section level4">
-<h4><span class="header-section-number">12.3.1.4</span> <em>timestamp</em> from character: <code>to_timestamp()</code></h4>
+<h4><span class="header-section-number">10.3.1.4</span> <em>timestamp</em> from character: <code>to_timestamp()</code></h4>
 <p><code>to_timestamp(x, format)</code> converts column <code>x</code> to timestamp using <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">java SimpleDateFormat</a> specifications.</p>
 <p>An example script that performs all these tasks:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dateDF <span class="op">%&gt;%</span>
@@ -1122,9 +1310,9 @@ dateUTC</code></pre></div>
 </div>
 </div>
 <div id="extracting-datetime-information" class="section level3">
-<h3><span class="header-section-number">12.3.2</span> Extracting date/time information</h3>
+<h3><span class="header-section-number">10.3.2</span> Extracting date/time information</h3>
 <div id="day-of-week-dayofweek" class="section level4">
-<h4><span class="header-section-number">12.3.2.1</span> Day of week <code>dayofweek</code></h4>
+<h4><span class="header-section-number">10.3.2.1</span> Day of week <code>dayofweek</code></h4>
 <p><code>dayofweek(x)</code>: day of week. Sunday=1, Saturday=7. Introduced in spark 2.3.0.</p>
 <ul>
 <li><code>x</code>: column. Columns of type <em>utc_timestamp</em> are supported.</li>
@@ -1138,7 +1326,7 @@ dateUTC</code></pre></div>
 ## 2 2018-05-03 06:34:11         5</code></pre>
 </div>
 <div id="hour-hour" class="section level4">
-<h4><span class="header-section-number">12.3.2.2</span> Hour <code>hour</code></h4>
+<h4><span class="header-section-number">10.3.2.2</span> Hour <code>hour</code></h4>
 <p>Extract hour in the current (as set in os) timezone.</p>
 <p><code>hour(x)</code>: hour (integer), in 24h format.</p>
 <ul>
@@ -1164,19 +1352,24 @@ dateUTC</code></pre></div>
 </div>
 </div>
 <div id="other-notes-draft" class="section level1">
-<h1><span class="header-section-number">13</span> other notes (draft)</h1>
+<h1><span class="header-section-number">11</span> other notes (draft)</h1>
 <div id="web-monitoring-ports" class="section level2">
-<h2><span class="header-section-number">13.1</span> Web Monitoring Ports</h2>
+<h2><span class="header-section-number">11.1</span> Web Monitoring Ports</h2>
 <p>if you start spark locally (–master local[n]), then the 8080 and 8081 ports are not there, only 4040.</p>
+<p>8080 is for master</p>
+</div>
+<div id="knitr-spark-objects-cannot-be-cached" class="section level2">
+<h2><span class="header-section-number">11.2</span> knitr: spark objects cannot be cached</h2>
+<p>This includes window specifications, dataframes</p>
 </div>
 <div id="merging-by-a-large-number-of-keys" class="section level2">
-<h2><span class="header-section-number">13.2</span> Merging by a large number of keys</h2>
+<h2><span class="header-section-number">11.3</span> Merging by a large number of keys</h2>
 <p>during merges (and possibly sorts) you may end up with being out of memory with error message like</p>
 <p>java.lang.IllegalArgumentException: Cannot allocate a page with more than 17179869176 bytes</p>
 <p>This is claimed to be related to grouping by key. Spark tries to allocate equal amount of memory for each key, and if the distribution is skewed, it attempts to allocate too much.</p>
 </div>
 <div id="finding-na-s" class="section level2">
-<h2><span class="header-section-number">13.3</span> finding NA-s</h2>
+<h2><span class="header-section-number">11.4</span> finding NA-s</h2>
 <p>I cannot understand how is.nan works. Use instead</p>
 <p>isNull(col)</p>
 <p>or</p>
@@ -1184,26 +1377,30 @@ dateUTC</code></pre></div>
 <p>they can be used for filtering and they mark NA-s as TRUE</p>
 </div>
 <div id="user-defined-functions" class="section level2">
-<h2><span class="header-section-number">13.4</span> User-Defined Functions</h2>
+<h2><span class="header-section-number">11.5</span> User-Defined Functions</h2>
 <p>when doing UDF-s and return data.frame, you may get “Unsupported type for serialization” error. This may be related to the fact that returned data.frame converts strings to factors and sparkR cannot serialize factors. Use stringsAsFactors=FALSE</p>
 </div>
 <div id="parquet-file-for-temporary-data" class="section level2">
-<h2><span class="header-section-number">13.5</span> Parquet file for temporary data</h2>
+<h2><span class="header-section-number">11.6</span> Parquet file for temporary data</h2>
 <p>you cannot easily overwrite parquet file with new data. The old cache remains in memory and it causes errors.</p>
 </div>
 <div id="reading-data" class="section level2">
-<h2><span class="header-section-number">13.6</span> Reading Data</h2>
+<h2><span class="header-section-number">11.7</span> Reading Data</h2>
 <p>read.parquet(): expects a list of files as the first argument read.df() expects a path where to read all the files as the first argument</p>
 <p>(spark 2.2)</p>
 </div>
 <div id="pivot" class="section level2">
-<h2><span class="header-section-number">13.7</span> pivot</h2>
+<h2><span class="header-section-number">11.8</span> pivot</h2>
 <p>don’t pivot on groupBy columns</p>
 </div>
+<div id="select" class="section level2">
+<h2><span class="header-section-number">11.9</span> select</h2>
+<p>cannot select columns of grouped data</p>
+</div>
 <div id="dapply" class="section level2">
-<h2><span class="header-section-number">13.8</span> dapply</h2>
+<h2><span class="header-section-number">11.10</span> dapply</h2>
 <p>the chunks fed to dapply are roungly of the size #obs/#partitions. nParallel dapply processes are run in parallel.</p>
-<p>If you get error message <code>error in parallel:::mcfork unable to create a pipe</code> then you may have run out of processes. Spark 2.1.2 and R 3.5.0 did not play nicely with dapply leaving zombies, until you run out of the available processes. In this case fewer partitions may help. Issue seems to be gone when switching to spark 2.3.1.</p>
+<p>If you get error message <code>error in parallel:::mcfork unable to create a pipe</code> then you may have run out of processes. Spark 2.1.2 and R 3.5.0 did not play nicely with dapply leaving zombies, until you run out of the available processes. pIn this case fewer partitions may help. Issue seems to be gone when switching to spark 2.3.1.</p>
 <p>One runs a separate dapply process for each partition? At least the number of dapply invocations seems to equal the number of partitions.</p>
 </div>
 </div>
