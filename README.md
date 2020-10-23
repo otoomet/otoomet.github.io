@@ -36,3 +36,6 @@ to create text that looks like a low-resolution photocopy.
 
 [OO Mapper tutorial](https://otoomet.bitbucket.io/oomapper-tutorial.html):
 how to use OpenOrienteering Mapper for various tasks.
+
+[imaxima on Ubuntu 20](https://otoomet.github.io/imaxima-ubuntu20):
+how to fix the latex errors.
