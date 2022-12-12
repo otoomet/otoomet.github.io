@@ -25,8 +25,13 @@ python/pandas.
 
 ## Other notes
 
-[math cheatsheet](math_cheatsheet/math_cheatsheet.pdf): various
+[asymptote](asymptote.html): notes about _asymptote_ vector graphics
+langage. 
+
+[math cheatsheet](math_cheatsheet.pdf): various
 mathematical and statistical formulas.
+
+[maxima](maxima.html): notes about _maxima_ computer algebra system. 
 
 [SparkR Notes](sparkr_notes.html): notes and solutions to certain
 issues I have had with SparkR.
